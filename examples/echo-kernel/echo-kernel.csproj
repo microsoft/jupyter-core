@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackAsTool>True</PackAsTool>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
+
+    <!--
+      NB: We need for the tool command name to match the pattern dotnet-*,
+          so that the tool is available for global installation.
+    -->
+    <ToolCommandName>dotnet-iecho</ToolCommandName>
+    <AssemblyName>Microsoft.Jupyter.Example.IEcho</AssemblyName>
+    <Version>0.1</Version>
+
+    <IsPackable>true</IsPackable>
+    <PackageType>DotnetCliTool</PackageType>
+    <Authors>Microsoft</Authors>
+    <PackageDescription>An example Jupyter kernel that echoes its input back as output.</PackageDescription>
+    <Copyright>© Microsoft Corporation. All rights reserved.</Copyright>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="2.1.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="2.1.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/jupyter-core.csproj" />
+  </ItemGroup>
+
+</Project>
