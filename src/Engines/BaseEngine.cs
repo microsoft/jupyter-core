@@ -24,6 +24,27 @@ namespace Microsoft.Jupyter.Core
 
     public abstract class BaseEngine : IExecutionEngine
     {
+
+        private class ExecutionChannel : IChannel
+        {
+            private readonly Message parent;
+            private readonly BaseEngine engine;
+            public ExecutionChannel(BaseEngine engine, Message parent)
+            {
+                this.parent = parent;
+                this.engine = engine;
+            }
+
+            public void Display(DisplayDataContent displayData) =>
+                engine.WriteDisplayData(parent, displayData);
+
+            public void Stderr(string message) =>
+                engine.WriteToStream(parent, StreamName.StandardError, message);
+
+            public void Stdout(string message) =>
+                engine.WriteToStream(parent, StreamName.StandardOut, message);
+        }
+
         public int ExecutionCount { get; protected set; }
         protected List<string> History;
         private readonly ImmutableDictionary<string, MethodInfo> magicMethods;
@@ -111,8 +132,7 @@ namespace Microsoft.Jupyter.Core
             // Run in the engine.
             var engineResponse = Execute(
                 ((ExecuteRequestContent)message.Content).Code,
-                text => WriteToStream(message, StreamName.StandardOut, text),
-                text => WriteToStream(message, StreamName.StandardError, text)
+                new ExecutionChannel(this, message)
             );
 
             // Send the engine's output as an execution result.
@@ -196,6 +216,20 @@ namespace Microsoft.Jupyter.Core
             );
         }
 
+        private void WriteDisplayData(Message parent, DisplayDataContent displayData)
+        {
+            // Send the engine's output to stdout.
+            this.ShellServer.SendIoPubMessage(
+                new Message
+                {
+                    Header = new MessageHeader
+                    {
+                        MessageType = "display_data"
+                    },
+                    Content = displayData
+                }.AsReplyTo(parent)
+            );
+        }
 
         public bool ContainsMagic(string input)
         {
@@ -205,7 +239,7 @@ namespace Microsoft.Jupyter.Core
 
         public virtual bool IsMagic(string input) => ContainsMagic(input);
 
-        public ExecutionResult Execute(string input, Action<string> stdout, Action<string> stderr)
+        public ExecutionResult Execute(string input, IChannel channel)
         {
             this.ExecutionCount++;
             this.History.Add(input);
@@ -215,16 +249,16 @@ namespace Microsoft.Jupyter.Core
 
             if (IsMagic(input))
             {
-                return ExecuteMagic(input, stdout, stderr);
+                return ExecuteMagic(input, channel);
             }
             else
             {
-                return ExecuteMundane(input, stdout, stderr);
+                return ExecuteMundane(input, channel);
             }
 
         }
 
-        public ExecutionResult ExecuteMagic(string input, Action<string> stdout, Action<string> stderr)
+        public ExecutionResult ExecuteMagic(string input, IChannel channel)
         {
             // Which magic command do we have? Split up until the first space.
             var parts = input.Split(new[] { ' ' }, 2);
@@ -232,21 +266,54 @@ namespace Microsoft.Jupyter.Core
             {
                 var method = magicMethods[parts[0]];
                 var remainingInput = parts.Length > 1 ? parts[1] : "";
-                return (ExecutionResult)method.Invoke(this, new object[] { remainingInput, stdout, stderr });
+                return (ExecutionResult)method.Invoke(this, new object[] { remainingInput, channel });
             }
             else
             {
-                stderr($"Magic command {parts[0]} not recognized.");
+                channel.Stderr($"Magic command {parts[0]} not recognized.");
                 return ExecuteStatus.Error.ToExecutionResult();
             }
         }
 
-        public abstract ExecutionResult ExecuteMundane(string input, Action<string> stdout, Action<string> stderr);
+        public abstract ExecutionResult ExecuteMundane(string input, IChannel channel);
 
         [MagicCommand("%history")]
-        public ExecutionResult ExecuteHistory(string input, Action<string> stdout, Action<string> stderr)
+        public ExecutionResult ExecuteHistory(string input, IChannel channel)
         {
             return History.ToExecutionResult();
+        }
+
+        [MagicCommand("%version")]
+        public ExecutionResult ExecuteVersion(string input, IChannel channel)
+        {
+            var versions = new [] {
+                (Context.Properties.KernelName, Context.Properties.KernelVersion),
+                ("Jupyter Core", typeof(BaseEngine).Assembly.GetName().Version.ToString())
+            };
+            channel.Display(new DisplayDataContent
+            {
+                Data = new Dictionary<string, object>
+                {
+                    ["text/html"] =
+                        "<table>" +
+                            "<thead>" +
+                                "<tr>" +
+                                    "<th>Component</th>" +
+                                    "<th>Version</th>" +
+                                "</tr>" +
+                            "</thead>" +
+                            "<tbody>" +
+                                String.Join("",
+                                    versions
+                                        .Select(item =>
+                                            $"<tr><td>{item.Item1}</td><td>{item.Item2}</td></tr>"
+                                        )
+                                ) +
+                            "</tbody>" +
+                        "</table>"
+                }
+            });
+            return ExecuteStatus.Ok.ToExecutionResult();
         }
     }
 }

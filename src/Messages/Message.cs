@@ -264,4 +264,25 @@ namespace Microsoft.Jupyter.Core
         [JsonProperty("text")]
         public string Text { get; set; }
     }
+
+    [JsonObject(MemberSerialization.OptIn)]
+    public class TransientDisplayData
+    {
+        [JsonProperty("display_id")]
+        public string DisplayId { get; set; }
+    }
+
+    [JsonObject(MemberSerialization.OptIn)]
+    public class DisplayDataContent : MessageContent
+    {
+        [JsonProperty("data")]
+        public Dictionary<string, object> Data { get; set; }
+
+        [JsonProperty("metadata")]
+        public Dictionary<string, object> Metadata { get; set; } = new Dictionary<string, object>();
+
+        [JsonProperty("transient")]
+        public TransientDisplayData Transient { get; set; } = null;
+    }
+
 }
