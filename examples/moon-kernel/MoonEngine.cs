@@ -8,6 +8,7 @@ using MoonSharp.Interpreter;
 using MoonSharp.Interpreter.REPL;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 
 namespace Microsoft.Jupyter.Core
 {
@@ -23,6 +24,10 @@ namespace Microsoft.Jupyter.Core
             ILogger<MoonEngine> logger
         ) : base(shell, context, logger)
         {
+            RegisterDefaultSerializers();
+            RegisterJsonSerializer(
+                new DynValueConverter()
+            );
             var script = new Script();
             script.Options.DebugPrint = str => printFn?.Invoke(str);
             interp = new ReplInterpreter(script);
@@ -42,7 +47,7 @@ namespace Microsoft.Jupyter.Core
                 }
                 else if (result.ToObject() != null)
                 {
-                    return result.ToDebugPrintString().ToExecutionResult();
+                    return result.ToExecutionResult();
                 }
                 else
                 {

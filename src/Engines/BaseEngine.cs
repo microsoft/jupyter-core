@@ -8,6 +8,7 @@ using System.Linq;
 using System.Reflection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Newtonsoft.Json;
 
 namespace Microsoft.Jupyter.Core
 {
@@ -26,6 +27,7 @@ namespace Microsoft.Jupyter.Core
     {
         public int ExecutionCount { get; protected set; }
         protected List<string> History;
+        private List<IDisplaySerializer> serializers = new List<IDisplaySerializer>();
         private readonly ImmutableDictionary<string, MethodInfo> magicMethods;
 
         public IShellServer ShellServer { get; }
@@ -61,6 +63,36 @@ namespace Microsoft.Jupyter.Core
                     pair => pair.Name,
                     pair => pair.method
                 );
+        }
+
+        public void RegisterDisplaySerializer(IDisplaySerializer serializer) =>
+            this.serializers.Add(serializer);
+
+        public void RegisterJsonSerializer(params JsonConverter[] converters) =>
+            RegisterDisplaySerializer(new JsonDisplaySerializer(this.Logger, converters));
+
+        public void RegisterDefaultSerializers()
+        {
+            RegisterDisplaySerializer(new PlainTextDisplaySerializer());
+            RegisterDisplaySerializer(new ListDisplaySerializer());
+        }
+
+        public DisplayData SerializeForDisplay(object displayable)
+        {
+            // Each serializer contributes what it can for a given object,
+            // and we take the union of their contributions, with preference
+            // given to the last serializers registered.
+            var displayData = DisplayData.Empty();
+            foreach (var serializer in serializers)
+            {
+                var serializerData = serializer.Serialize(displayable);
+                if (serializerData.HasValue)
+                {
+                    displayData.Data.Update(serializerData.Value.Data);
+                    displayData.Metadata.Update(serializerData.Value.Metadata);
+                }
+            }
+            return displayData;
         }
 
         public void Start()
@@ -116,8 +148,9 @@ namespace Microsoft.Jupyter.Core
             );
 
             // Send the engine's output as an execution result.
-            if (engineResponse.Output != null && engineResponse.Output.Count > 0)
+            if (engineResponse.Output != null)
             {
+                var serialized = SerializeForDisplay(engineResponse.Output);
                 this.ShellServer.SendIoPubMessage(
                     new Message
                     {
@@ -127,7 +160,8 @@ namespace Microsoft.Jupyter.Core
                         Content = new ExecuteResultContent
                         {
                             ExecutionCount = this.ExecutionCount,
-                            Data = engineResponse.Output
+                            Data = serialized.Data,
+                            Metadata = serialized.Metadata
                         },
                         Header = new MessageHeader
                         {
