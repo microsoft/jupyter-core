@@ -1,43 +1,44 @@
-name: $(Build.Major).$(Build.Minor).$(date:yyMM).$(DayOfMonth)$(rev:rr)
 trigger: none
 resources:
   repositories:
   - repository: self
-variables:
-  Build.Major: 1
-  Build.Minor: 0
 
+steps:
+- task: DotNetCoreInstaller@0
+  displayName: 'Install .NET Core SDK 2.1.300'
+  inputs:
+    version: 2.1.300
 
-jobs:
-- job: "JupyterCore"
-  steps:
-  - task: DotNetCoreInstaller@0
-    displayName: 'Install .NET Core SDK 2.1.300'
-    inputs:
-      version: 2.1.300
+- task: CondaEnvironment@1
+  displayName: 'Create conda environment for hosting Jupyter kernels'
+  inputs:
+    environmentName: nb
+    packageSpecs: notebook jupyter_client pytest nose
 
-  - task: CondaEnvironment@1
-    displayName: 'Create conda environment for hosting Jupyter kernels'
-    inputs:
-      environmentName: nb
-      packageSpecs: notebook jupyter_client pytest nose
+- script: |
+    pip install jupyter_kernel_test
+    # The version of pyzmq on Anaconda does not seem to work in Windows agents
+    # as of November 2018: https://github.com/zeromq/pyzmq/issues/852
+    pip uninstall -y pyzmq
+    pip install pyzmq
+  displayName: 'Install additional dependencies from pip.'
 
-  - script: |
-      pip install jupyter_kernel_test
-      # The version of pyzmq on Anaconda does not seem to work in Windows agents
-      # as of November 2018: https://github.com/zeromq/pyzmq/issues/852
-      pip uninstall -y pyzmq
-      pip install pyzmq
-    displayName: 'Install additional dependencies from pip.'
+- script: dotnet run -- install --develop
+  displayName: "Add IEcho kernel to Jupyter."
+  workingDirectory: examples/echo-kernel
 
-  - script: dotnet run -- install --develop
-    displayName: "Add IEcho kernel to Jupyter."
-    workingDirectory: examples/echo-kernel
+- script: dotnet run -- install --develop
+  displayName: "Add IMoon kernel to Jupyter."
+  workingDirectory: examples/moon-kernel
 
-  - script: dotnet run -- install --develop
-    displayName: "Add IMoon kernel to Jupyter."
-    workingDirectory: examples/moon-kernel
+- script: py.test tests/
+  displayName: "Run Jupyter protocol tests."
+  workingDirectory: .
 
-  - script: py.test tests/
-    displayName: "Run Jupyter protocol tests."
-    workingDirectory: .
+- task: DotNetCoreCLI@2
+  inputs:
+    command: pack
+    projects: src/jupyter-core.csproj
+    versioningScheme: byPrereleaseNumber
+
+- task: PublishBuildArtifacts@1
