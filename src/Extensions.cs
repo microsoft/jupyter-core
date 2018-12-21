@@ -178,16 +178,6 @@ namespace Microsoft.Jupyter.Core
                 .Aggregate((acc, nextBool) => (acc && nextBool));
         }
 
-        public static ExecutionResult ToExecutionResult(this string message, ExecuteStatus status = ExecuteStatus.Ok) =>
-            new ExecutionResult
-            {
-                Status = status,
-                Output = new Dictionary<string, string>
-                {
-                    ["text/plain"] = message
-                }
-            };
-
         public static ExecutionResult ToExecutionResult(this ExecuteStatus status) =>
             new ExecutionResult
             {
@@ -195,23 +185,21 @@ namespace Microsoft.Jupyter.Core
                 Output = null
             };
 
-        public static ExecutionResult ToExecutionResult(this IEnumerable<object> objects)
-        {
-            var list = String.Join("\n",
-                from item in objects
-                select $"<li>{item}</li>"
-            );
-            return new ExecutionResult
+        public static ExecutionResult ToExecutionResult(this object output, ExecuteStatus status = ExecuteStatus.Ok) =>
+            new ExecutionResult
             {
-                Status = ExecuteStatus.Ok,
-                Output = new Dictionary<string, string>
-                {
-                    ["text/html"] = $"<ul>{list}</ul>",
-                    ["text/plain"] = String.Join(
-                        "\n", objects.Select(o => o.ToString())
-                    )
-                }
+                Status = status,
+                Output = output
             };
+
+        public static Dictionary<TKey, TValue> Update<TKey, TValue>(this Dictionary<TKey, TValue> dict, Dictionary<TKey, TValue> other)
+        {
+            foreach (var item in other)
+            {
+                dict[item.Key] = item.Value;
+            }
+
+            return dict;
         }
 
     }

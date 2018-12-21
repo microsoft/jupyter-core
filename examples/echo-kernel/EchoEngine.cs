@@ -16,7 +16,9 @@ namespace Microsoft.Jupyter.Core
             IShellServer shell,
             IOptions<KernelContext> context,
             ILogger<EchoEngine> logger
-        ) : base(shell, context, logger) { }
+        ) : base(shell, context, logger) {
+            RegisterDefaultSerializers();
+        }
 
         public override ExecutionResult ExecuteMundane(string input, IChannel channel)
         {

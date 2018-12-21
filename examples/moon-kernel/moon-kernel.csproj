@@ -5,6 +5,7 @@
     <PackAsTool>True</PackAsTool>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp2.1</TargetFramework>
+    <Version>1.0</Version>
   </PropertyGroup>
 
   <ItemGroup>

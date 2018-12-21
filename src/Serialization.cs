@@ -27,10 +27,8 @@ namespace Microsoft.Jupyter.Core
             }
         }
 
-        public override void WriteJson(JsonWriter writer, IPAddress value, JsonSerializer serializer)
-        {
-            throw new NotImplementedException();
-        }
+        public override void WriteJson(JsonWriter writer, IPAddress value, JsonSerializer serializer) =>
+            writer.WriteValue(value.ToString());
     }
 
 }

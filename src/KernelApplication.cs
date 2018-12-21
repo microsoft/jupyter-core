@@ -53,10 +53,19 @@ namespace Microsoft.Jupyter.Core
                         "Installs a kernel spec that runs against this working directory. Useful for development only.",
                         CommandOptionType.NoValue
                     );
+                    var logLevelOpt = cmd.Option<LogLevel>(
+                        "-l|--log-level <LEVEL>",
+                        "Level of logging messages to emit to the console. On development mode, defaults to Information.",
+                        CommandOptionType.SingleValue
+                    );
                     cmd.OnExecute(() =>
                     {
                         var develop = developOpt.HasValue();
-                        return ReturnExitCode(() => InstallKernelSpec(develop));
+                        var logLevel =
+                            logLevelOpt.HasValue()
+                            ? logLevelOpt.ParsedValue
+                            : (develop ? LogLevel.Information : LogLevel.Error);
+                        return ReturnExitCode(() => InstallKernelSpec(develop, logLevel));
                     });
                 }
             );
@@ -77,7 +86,7 @@ namespace Microsoft.Jupyter.Core
                     );
                     var logLevelOpt = cmd.Option<LogLevel>(
                         "-l|--log-level <LEVEL>",
-                        "Level of logging messages to emit to the console.",
+                        "Level of logging messages to emit to the console. Defaults to Error.", 
                         CommandOptionType.SingleValue
                     );
                     cmd.OnExecute(() =>
@@ -107,7 +116,7 @@ namespace Microsoft.Jupyter.Core
             }
         }
 
-        public int InstallKernelSpec(bool develop)
+        public int InstallKernelSpec(bool develop, LogLevel logLevel)
         {
             var kernelSpecDir = "";
             KernelSpec kernelSpec;
@@ -126,8 +135,11 @@ namespace Microsoft.Jupyter.Core
                     DisplayName = properties.KernelName,
                     LanguageName = properties.LanguageName,
                     Arguments = new List<string> {
-                        "dotnet", "run", "--project",
-                        Directory.GetCurrentDirectory(), "kernel", "{connection_file}"
+                        "dotnet", "run",
+                        "--project", Directory.GetCurrentDirectory(),
+                        "--", "kernel",
+                        "--log-level", logLevel.ToString(),
+                        "{connection_file}"
                     }
                 };
             }
@@ -139,7 +151,10 @@ namespace Microsoft.Jupyter.Core
                     LanguageName = properties.LanguageName,
                     Arguments = new List<string>
                     {
-                        "dotnet", properties.KernelName, "kernel", "{connection_file}"
+                        "dotnet", properties.KernelName,
+                        "kernel",
+                        "--log-level", logLevel.ToString(),
+                        "{connection_file}"
                     }
                 };
             }
@@ -199,7 +214,6 @@ namespace Microsoft.Jupyter.Core
             configure(serviceCollection);
 
             var serviceProvider = serviceCollection.BuildServiceProvider();
-
 
             // Minimally, we need to start a server for each of the heartbeat,
             // control and shell sockets.
