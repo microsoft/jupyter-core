@@ -199,10 +199,10 @@ namespace Microsoft.Jupyter.Core
         public int ExecutionCount { get; set; }
 
         [JsonProperty("data")]
-        public Dictionary<string, object> Data { get; set; }
+        public Dictionary<string, string> Data { get; set; }
 
         [JsonProperty("metadata")]
-        public Dictionary<string, object> Metadata { get; set; } = new Dictionary<string, object>();
+        public Dictionary<string, string> Metadata { get; set; } = new Dictionary<string, string>();
     }
 
     [JsonObject(MemberSerialization.OptIn)]

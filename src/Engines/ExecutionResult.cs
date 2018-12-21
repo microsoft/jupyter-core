@@ -20,13 +20,13 @@ namespace Microsoft.Jupyter.Core
 
     public struct DisplayData
     {
-        public Dictionary<string, object> Data;
-        public Dictionary<string, object> Metadata;
+        public Dictionary<string, string> Data;
+        public Dictionary<string, string> Metadata;
 
         public static DisplayData Empty() => new DisplayData
         {
-            Data = new Dictionary<string, object>(),
-            Metadata = new Dictionary<string, object>()
+            Data = new Dictionary<string, string>(),
+            Metadata = new Dictionary<string, string>()
         };
     }
 
@@ -52,11 +52,15 @@ namespace Microsoft.Jupyter.Core
                 var serialized = JsonConvert.SerializeObject(displayable, converters);
                 return new DisplayData
                 {
-                    Data = new Dictionary<string, object>
+                    Data = new Dictionary<string, string>
                     {
-                        ["application/json"] = new JRaw(serialized)
+                        // NB: Jupyter MIME bundles must be maps from strings to
+                        //     raw data, so we want to make sure a string
+                        //     containing the JSON is serialized instead of the
+                        //     JSON itself.
+                        ["application/json"] = serialized
                     },
-                    Metadata = new Dictionary<string, object>()
+                    Metadata = new Dictionary<string, string>()
                 };
             }
             catch (Exception ex)
@@ -72,11 +76,11 @@ namespace Microsoft.Jupyter.Core
         public DisplayData? Serialize(object displayable) =>
             new DisplayData
             {
-                Data = new Dictionary<string, object>
+                Data = new Dictionary<string, string>
                 {
                     ["text/plain"] = displayable.ToString()
                 },
-                Metadata = new Dictionary<string, object>()
+                Metadata = new Dictionary<string, string>()
             };
     }
 
@@ -96,14 +100,14 @@ namespace Microsoft.Jupyter.Core
                 );
                 return new DisplayData
                 {
-                    Data = new Dictionary<string, object>
+                    Data = new Dictionary<string, string>
                     {
                         ["text/plain"] = String.Join("\n",
                             enumerable.Cast<object>().Select(item => item.ToString())
                         ),
                         ["text/html"] = $"<ul>{list}</ul>"
                     },
-                    Metadata = new Dictionary<string, object>()
+                    Metadata = new Dictionary<string, string>()
                 };
             }
             else return null;
