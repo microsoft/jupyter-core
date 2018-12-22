@@ -36,8 +36,8 @@ namespace Microsoft.Jupyter.Core
                 this.engine = engine;
             }
 
-            public void Display(DisplayDataContent displayData) =>
-                engine.WriteDisplayData(parent, displayData);
+            public void Display(object displayable) =>
+                engine.WriteDisplayData(parent, displayable);
 
             public void Stderr(string message) =>
                 engine.WriteToStream(parent, StreamName.StandardError, message);
@@ -96,6 +96,7 @@ namespace Microsoft.Jupyter.Core
         {
             RegisterDisplaySerializer(new PlainTextDisplaySerializer());
             RegisterDisplaySerializer(new ListDisplaySerializer());
+            RegisterDisplaySerializer(new TableDisplaySerializer());
         }
 
         public DisplayData SerializeForDisplay(object displayable)
@@ -250,8 +251,9 @@ namespace Microsoft.Jupyter.Core
             );
         }
 
-        private void WriteDisplayData(Message parent, DisplayDataContent displayData)
+        private void WriteDisplayData(Message parent, object displayable)
         {
+            var serialized = SerializeForDisplay(displayable);
             // Send the engine's output to stdout.
             this.ShellServer.SendIoPubMessage(
                 new Message
@@ -260,7 +262,12 @@ namespace Microsoft.Jupyter.Core
                     {
                         MessageType = "display_data"
                     },
-                    Content = displayData
+                    Content = new DisplayDataContent
+                    {
+                        Data = serialized.Data,
+                        Metadata = serialized.Metadata,
+                        Transient = null
+                    }
                 }.AsReplyTo(parent)
             );
         }
@@ -324,29 +331,17 @@ namespace Microsoft.Jupyter.Core
                 (Context.Properties.KernelName, Context.Properties.KernelVersion),
                 ("Jupyter Core", typeof(BaseEngine).Assembly.GetName().Version.ToString())
             };
-            channel.Display(new DisplayDataContent
-            {
-                Data = new Dictionary<string, object>
+            channel.Display(
+                new Table<(string, string)>
                 {
-                    ["text/html"] =
-                        "<table>" +
-                            "<thead>" +
-                                "<tr>" +
-                                    "<th>Component</th>" +
-                                    "<th>Version</th>" +
-                                "</tr>" +
-                            "</thead>" +
-                            "<tbody>" +
-                                String.Join("",
-                                    versions
-                                        .Select(item =>
-                                            $"<tr><td>{item.Item1}</td><td>{item.Item2}</td></tr>"
-                                        )
-                                ) +
-                            "</tbody>" +
-                        "</table>"
+                    Columns = new List<(string, Func<(string, string), string>)>
+                    {
+                        ("Component", item => item.Item1),
+                        ("Version", item => item.Item2)
+                    },
+                    Rows = versions.ToList()
                 }
-            });
+            );
             return ExecuteStatus.Ok.ToExecutionResult();
         }
     }

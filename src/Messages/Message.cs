@@ -276,10 +276,10 @@ namespace Microsoft.Jupyter.Core
     public class DisplayDataContent : MessageContent
     {
         [JsonProperty("data")]
-        public Dictionary<string, object> Data { get; set; }
+        public Dictionary<string, string> Data { get; set; }
 
         [JsonProperty("metadata")]
-        public Dictionary<string, object> Metadata { get; set; } = new Dictionary<string, object>();
+        public Dictionary<string, string> Metadata { get; set; } = new Dictionary<string, string>();
 
         [JsonProperty("transient")]
         public TransientDisplayData Transient { get; set; } = null;

@@ -7,6 +7,6 @@ namespace Microsoft.Jupyter.Core
     {
         void Stdout(string message);
         void Stderr(string message);
-        void Display(DisplayDataContent displayData);
+        void Display(object displayable);
     }
 }
