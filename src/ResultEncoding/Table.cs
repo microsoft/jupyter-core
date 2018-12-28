@@ -31,9 +31,9 @@ namespace Microsoft.Jupyter.Core
                 .ToArray();
     }
 
-    public class TableDisplaySerializer : IDisplaySerializer
+    public class TableDisplaySerializer : IResultEncoder
     {
-        public DisplayData? Serialize(object displayable)
+        public IEnumerable<EncodedData> Encode(object displayable)
         {
             if (displayable is ITable table)
             {
@@ -76,13 +76,17 @@ namespace Microsoft.Jupyter.Core
                 }
 
 
-                return new DisplayData
+                return new EncodedData[]
                 {
-                    Metadata = new Dictionary<string, string>(),
-                    Data = new Dictionary<string, string>
+                    new EncodedData
                     {
-                        ["text/plain"] = text.ToString(),
-                        ["text/html"] =
+                        MimeType = MimeTypes.PlainText,
+                        Data = text.ToString()
+                    },
+                    new EncodedData
+                    {
+                        MimeType = MimeTypes.Html,
+                        Data = 
                             "<table>" +
                                 "<thead>" +
                                     "<tr>" +
@@ -109,7 +113,7 @@ namespace Microsoft.Jupyter.Core
                             "</table>"
                     }
                 };
-            } else return null;
+            } else return new EncodedData[] { };
         }
     }
 }

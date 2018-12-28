@@ -24,7 +24,6 @@ namespace Microsoft.Jupyter.Core
             ILogger<MoonEngine> logger
         ) : base(shell, context, logger)
         {
-            RegisterDefaultSerializers();
             RegisterJsonSerializer(
                 new DynValueConverter()
             );
