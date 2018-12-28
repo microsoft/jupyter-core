@@ -18,79 +18,100 @@ namespace Microsoft.Jupyter.Core
         public object Output;
     }
 
-    public struct DisplayData
+    public static class MimeTypes
+    {
+        public const string PlainText = "text/plain";
+        public const string Json = "application/json";
+        public const string Html = "text/html";
+    }
+
+    /// <summary>
+    ///     Represents a Jupyter protocol MIME bundle, a pair of dictionaries
+    ///     keyed by MIME types.
+    /// </summary>
+    /// <remarks>
+    ///     Both the data and metadata dictionaries are string-valued, even though
+    ///     the Jupyter protocol allows for arbitrary JSON objects with strings
+    ///     being a special case. We adopt this restriction as some clients (in
+    ///     particular, jupyter_client) do not properly handle the more general case.
+    /// </remarks>
+    internal struct MimeBundle
     {
         public Dictionary<string, string> Data;
         public Dictionary<string, string> Metadata;
 
-        public static DisplayData Empty() => new DisplayData
-        {
-            Data = new Dictionary<string, string>(),
-            Metadata = new Dictionary<string, string>()
-        };
+        public static MimeBundle Empty() =>
+            new MimeBundle
+            {
+                Data = new Dictionary<string, string>(),
+                Metadata = new Dictionary<string, string>()
+            };
     }
 
-    public interface IDisplaySerializer
+    public struct EncodedData
     {
-        DisplayData? Serialize(object displayable);
+        public string MimeType;
+        public string Data;
+        public string Metadata;
     }
 
-    public class JsonDisplaySerializer : IDisplaySerializer
+    public interface IResultEncoder
+    {
+        IEnumerable<EncodedData> Encode(object displayable);
+    }
+
+    public class JsonResultEncoder : IResultEncoder
     {
         private readonly ILogger logger;
         private readonly JsonConverter[] converters;
 
-        public JsonDisplaySerializer(ILogger logger = null, JsonConverter[] converters = null)
+        public JsonResultEncoder(ILogger logger = null, JsonConverter[] converters = null)
         {
             this.logger = logger;
             this.converters = converters ?? new JsonConverter[] {};
         }
-        public DisplayData? Serialize(object displayable)
+        public IEnumerable<EncodedData> Encode(object displayable)
         {
             try
             {
                 var serialized = JsonConvert.SerializeObject(displayable, converters);
-                return new DisplayData
+                return new[]
                 {
-                    Data = new Dictionary<string, string>
+                    new EncodedData
                     {
-                        // NB: Jupyter MIME bundles must be maps from strings to
-                        //     raw data, so we want to make sure a string
-                        //     containing the JSON is serialized instead of the
-                        //     JSON itself.
-                        ["application/json"] = serialized
-                    },
-                    Metadata = new Dictionary<string, string>()
+                        MimeType = "application/json",
+                        Data = serialized
+                    }
                 };
             }
             catch (Exception ex)
             {
                 logger?.LogWarning(ex, "Failed to serialize display data of type {Type}.", displayable.GetType().ToString());
-                return null;
+                return new EncodedData[] { };
             }
         }
     }
 
-    public class PlainTextDisplaySerializer : IDisplaySerializer
+    public class PlainTextResultEncoder : IResultEncoder
     {
-        public DisplayData? Serialize(object displayable) =>
-            new DisplayData
+        public IEnumerable<EncodedData> Encode(object displayable) =>
+            new[]
             {
-                Data = new Dictionary<string, string>
+                new EncodedData
                 {
-                    ["text/plain"] = displayable.ToString()
-                },
-                Metadata = new Dictionary<string, string>()
+                    MimeType = MimeTypes.PlainText,
+                    Data = displayable.ToString()
+                }
             };
     }
 
-    public class ListDisplaySerializer : IDisplaySerializer
+    public class ListResultEncoder : IResultEncoder
     {
-        public DisplayData? Serialize(object displayable)
+        public IEnumerable<EncodedData> Encode(object displayable)
         {
             if (displayable is string)
             {
-                return null;
+                return new EncodedData[] { };
             }
             else if (displayable is IEnumerable enumerable)
             {
@@ -98,19 +119,23 @@ namespace Microsoft.Jupyter.Core
                     from object item in enumerable
                     select $"<li>{item}</li>"
                 );
-                return new DisplayData
+                return new[]
                 {
-                    Data = new Dictionary<string, string>
+                    new EncodedData
                     {
-                        ["text/plain"] = String.Join("\n",
+                        MimeType = MimeTypes.PlainText,
+                        Data = String.Join("\n",
                             enumerable.Cast<object>().Select(item => item.ToString())
-                        ),
-                        ["text/html"] = $"<ul>{list}</ul>"
+                        )
                     },
-                    Metadata = new Dictionary<string, string>()
+                    new EncodedData
+                    {
+                        MimeType = MimeTypes.Html,
+                        Data = $"<ul>{list}</ul>"
+                    }
                 };
             }
-            else return null;
+            else return new EncodedData[] {};
         }
     }
 }

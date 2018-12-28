@@ -27,7 +27,7 @@ namespace Microsoft.Jupyter.Core
     {
         public int ExecutionCount { get; protected set; }
         protected List<string> History;
-        private List<IDisplaySerializer> serializers = new List<IDisplaySerializer>();
+        private List<IResultEncoder> serializers = new List<IResultEncoder>();
         private readonly ImmutableDictionary<string, MethodInfo> magicMethods;
 
         public IShellServer ShellServer { get; }
@@ -63,33 +63,40 @@ namespace Microsoft.Jupyter.Core
                     pair => pair.Name,
                     pair => pair.method
                 );
+
+            RegisterDefaultSerializers();
         }
 
-        public void RegisterDisplaySerializer(IDisplaySerializer serializer) =>
+        public void RegisterDisplaySerializer(IResultEncoder serializer) =>
             this.serializers.Add(serializer);
 
         public void RegisterJsonSerializer(params JsonConverter[] converters) =>
-            RegisterDisplaySerializer(new JsonDisplaySerializer(this.Logger, converters));
+            RegisterDisplaySerializer(new JsonResultEncoder(this.Logger, converters));
 
         public void RegisterDefaultSerializers()
         {
-            RegisterDisplaySerializer(new PlainTextDisplaySerializer());
-            RegisterDisplaySerializer(new ListDisplaySerializer());
+            RegisterDisplaySerializer(new PlainTextResultEncoder());
+            RegisterDisplaySerializer(new ListResultEncoder());
         }
 
-        public DisplayData SerializeForDisplay(object displayable)
+        internal MimeBundle EncodeForDisplay(object displayable)
         {
             // Each serializer contributes what it can for a given object,
             // and we take the union of their contributions, with preference
             // given to the last serializers registered.
-            var displayData = DisplayData.Empty();
+            var displayData = MimeBundle.Empty();
             foreach (var serializer in serializers)
             {
-                var serializerData = serializer.Serialize(displayable);
-                if (serializerData.HasValue)
+                var serialized = serializer.Encode(displayable);
+                if (serialized == null)
                 {
-                    displayData.Data.Update(serializerData.Value.Data);
-                    displayData.Metadata.Update(serializerData.Value.Metadata);
+                    continue;
+                }
+
+                foreach (var encodedData in serialized)
+                {
+                    displayData.Data[encodedData.MimeType] = encodedData.Data;
+                    displayData.Metadata[encodedData.MimeType] = encodedData.Metadata;
                 }
             }
             return displayData;
@@ -150,7 +157,7 @@ namespace Microsoft.Jupyter.Core
             // Send the engine's output as an execution result.
             if (engineResponse.Output != null)
             {
-                var serialized = SerializeForDisplay(engineResponse.Output);
+                var serialized = EncodeForDisplay(engineResponse.Output);
                 this.ShellServer.SendIoPubMessage(
                     new Message
                     {
