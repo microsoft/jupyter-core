@@ -216,7 +216,7 @@ namespace Microsoft.Jupyter.Core
 
         // Don't use this! It's deprecated at the protocol level.
         [JsonProperty("payload")]
-        public List<Dictionary<string, object>> Payloads { get; set; }
+        public List<Dictionary<string, object>> Payloads { get; set; } = new List<Dictionary<string, object>>();
 
         [JsonProperty("user_expressions")]
         public Dictionary<string, object> UserExpressions { get; set; }
