@@ -178,6 +178,15 @@ namespace Microsoft.Jupyter.Core
                 .Aggregate((acc, nextBool) => (acc && nextBool));
         }
 
+        public static IEnumerable<T> AsEnumerable<T>(this Nullable<T> nullable)
+        where T : struct
+        {
+            if (nullable.HasValue)
+            {
+                yield return nullable.Value;
+            }
+        }
+
         public static ExecutionResult ToExecutionResult(this ExecuteStatus status) =>
             new ExecutionResult
             {

@@ -18,39 +18,36 @@ namespace Microsoft.Jupyter.Core
             this.logger = logger;
             this.converters = converters ?? new JsonConverter[] {};
         }
+
         public IEnumerable<EncodedData> Encode(object displayable)
         {
+            EncodedData? encoded = null;
             try
             {
-                var serialized = JsonConvert.SerializeObject(displayable, converters);
-                return new[]
+                encoded = new EncodedData
                 {
-                    new EncodedData
-                    {
-                        MimeType = "application/json",
-                        Data = serialized
-                    }
+                    MimeType = "application/json",
+                    Data = JsonConvert.SerializeObject(displayable, converters)
                 };
             }
             catch (Exception ex)
             {
                 logger?.LogWarning(ex, "Failed to serialize display data of type {Type}.", displayable.GetType().ToString());
-                return new EncodedData[] { };
             }
+            return encoded.AsEnumerable();
         }
     }
 
     public class PlainTextResultEncoder : IResultEncoder
     {
-        public IEnumerable<EncodedData> Encode(object displayable) =>
-            new[]
+        public IEnumerable<EncodedData> Encode(object displayable)
+        {
+            yield return new EncodedData
             {
-                new EncodedData
-                {
-                    MimeType = MimeTypes.PlainText,
-                    Data = displayable.ToString()
-                }
+                MimeType = MimeTypes.PlainText,
+                Data = displayable.ToString()
             };
+        }
     }
 
     public class ListResultEncoder : IResultEncoder
@@ -59,7 +56,7 @@ namespace Microsoft.Jupyter.Core
         {
             if (displayable is string)
             {
-                return new EncodedData[] { };
+                yield break;
             }
             else if (displayable is IEnumerable enumerable)
             {
@@ -67,23 +64,19 @@ namespace Microsoft.Jupyter.Core
                     from object item in enumerable
                     select $"<li>{item}</li>"
                 );
-                return new[]
+                yield return new EncodedData
                 {
-                    new EncodedData
-                    {
-                        MimeType = MimeTypes.PlainText,
-                        Data = String.Join("\n",
-                            enumerable.Cast<object>().Select(item => item.ToString())
-                        )
-                    },
-                    new EncodedData
-                    {
-                        MimeType = MimeTypes.Html,
-                        Data = $"<ul>{list}</ul>"
-                    }
+                    MimeType = MimeTypes.PlainText,
+                    Data = String.Join("\n",
+                        enumerable.Cast<object>().Select(item => item.ToString())
+                    )
+                };
+                yield return new EncodedData
+                {
+                    MimeType = MimeTypes.Html,
+                    Data = $"<ul>{list}</ul>"
                 };
             }
-            else return new EncodedData[] {};
         }
     }
 

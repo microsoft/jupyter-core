@@ -85,20 +85,20 @@ namespace Microsoft.Jupyter.Core
                     pair => pair.method
                 );
 
-            RegisterDefaultSerializers();
+            RegisterDefaultEncoders();
         }
 
-        public void RegisterDisplaySerializer(IResultEncoder serializer) =>
+        public void RegisterDisplayEncoder(IResultEncoder serializer) =>
             this.serializers.Add(serializer);
 
         public void RegisterJsonSerializer(params JsonConverter[] converters) =>
-            RegisterDisplaySerializer(new JsonResultEncoder(this.Logger, converters));
+            RegisterDisplayEncoder(new JsonResultEncoder(this.Logger, converters));
 
-        public void RegisterDefaultSerializers()
+        public void RegisterDefaultEncoders()
         {
-            RegisterDisplaySerializer(new PlainTextResultEncoder());
-            RegisterDisplaySerializer(new ListResultEncoder());
-            RegisterDisplaySerializer(new TableDisplaySerializer());
+            RegisterDisplayEncoder(new PlainTextResultEncoder());
+            RegisterDisplayEncoder(new ListResultEncoder());
+            RegisterDisplayEncoder(new TableDisplaySerializer());
         }
 
         internal MimeBundle EncodeForDisplay(object displayable)
@@ -127,14 +127,14 @@ namespace Microsoft.Jupyter.Core
             return displayData;
         }
 
-        public void Start()
+        public virtual void Start()
         {
             this.ShellServer.KernelInfoRequest += OnKernelInfoRequest;
             this.ShellServer.ExecuteRequest += OnExecuteRequest;
             this.ShellServer.ShutdownRequest += OnShutdownRequest;
         }
 
-        public void OnKernelInfoRequest(Message message)
+        public virtual void OnKernelInfoRequest(Message message)
         {
             this.ShellServer.SendShellMessage(
                 new Message
@@ -153,7 +153,7 @@ namespace Microsoft.Jupyter.Core
             );
         }
 
-        public void OnExecuteRequest(Message message)
+        public virtual void OnExecuteRequest(Message message)
         {
             this.Logger.LogDebug($"Asked to execute code:\n{((ExecuteRequestContent)message.Content).Code}");
 
@@ -237,7 +237,7 @@ namespace Microsoft.Jupyter.Core
             );
         }
 
-        public void OnShutdownRequest(Message message)
+        public virtual void OnShutdownRequest(Message message)
         {
             System.Environment.Exit(0);
         }
@@ -282,7 +282,7 @@ namespace Microsoft.Jupyter.Core
             );
         }
 
-        public bool ContainsMagic(string input)
+        public virtual bool ContainsMagic(string input)
         {
             var parts = input.Trim().Split(new[] { ' ' }, 2);
             return magicMethods.ContainsKey(parts[0]);
@@ -290,7 +290,7 @@ namespace Microsoft.Jupyter.Core
 
         public virtual bool IsMagic(string input) => ContainsMagic(input);
 
-        public ExecutionResult Execute(string input, IChannel channel)
+        public virtual ExecutionResult Execute(string input, IChannel channel)
         {
             this.ExecutionCount++;
             this.History.Add(input);
@@ -309,7 +309,7 @@ namespace Microsoft.Jupyter.Core
 
         }
 
-        public ExecutionResult ExecuteMagic(string input, IChannel channel)
+        public virtual ExecutionResult ExecuteMagic(string input, IChannel channel)
         {
             // Which magic command do we have? Split up until the first space.
             var parts = input.Split(new[] { ' ' }, 2);
