@@ -13,6 +13,7 @@ namespace Microsoft.Jupyter.Core
         public const string PlainText = "text/plain";
         public const string Json = "application/json";
         public const string Html = "text/html";
+        public const string Markdown = "text/markdown";
     }
 
     /// <summary>

@@ -83,4 +83,26 @@ namespace Microsoft.Jupyter.Core
         }
     }
 
+    public class FuncResultEncoder : IResultEncoder
+    {
+        private Func<object, EncodedData?> encode;
+        private readonly string mimeType;
+
+        public string MimeType => mimeType;
+
+        public FuncResultEncoder(string mimeType, Func<object, EncodedData?> encode)
+        {
+            this.mimeType = mimeType;
+            this.encode = encode;
+        }
+
+        public FuncResultEncoder(string mimeType, Func<object, string> encode)
+        : this(mimeType, displayable => encode(displayable).ToEncodedData()) {}
+
+        public EncodedData? Encode(object displayable)
+        {
+            return encode(displayable);
+        }
+    }
+
 }

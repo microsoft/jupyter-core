@@ -27,6 +27,19 @@ namespace Microsoft.Jupyter.Core
             RegisterJsonEncoder(
                 new DynValueConverter()
             );
+            RegisterDisplayEncoder(
+                MimeTypes.Markdown,
+                displayable => {
+                    if (displayable is IEnumerable<string> list)
+                    {
+                        return String.Join(
+                            "\n",
+                            list.Select(item => $"- {item}")
+                        );
+                    }
+                    else return null;
+                }
+            );
             var script = new Script();
             script.Options.DebugPrint = str => printFn?.Invoke(str);
             interp = new ReplInterpreter(script);

@@ -103,6 +103,12 @@ namespace Microsoft.Jupyter.Core
             }
         }
 
+        public void RegisterDisplayEncoder(string mimeType, Func<object, EncodedData?> encoder) =>
+            RegisterDisplayEncoder(new FuncResultEncoder(mimeType, encoder));
+
+        public void RegisterDisplayEncoder(string mimeType, Func<object, string> encoder) =>
+            RegisterDisplayEncoder(new FuncResultEncoder(mimeType, encoder));
+
         public void RegisterJsonEncoder(params JsonConverter[] converters) =>
             RegisterDisplayEncoder(new JsonResultEncoder(this.Logger, converters));
 
