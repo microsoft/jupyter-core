@@ -91,7 +91,7 @@ namespace Microsoft.Jupyter.Core
         public void RegisterDisplayEncoder(IResultEncoder serializer) =>
             this.serializers.Add(serializer);
 
-        public void RegisterJsonSerializer(params JsonConverter[] converters) =>
+        public void RegisterJsonEncoder(params JsonConverter[] converters) =>
             RegisterDisplayEncoder(new JsonResultEncoder(this.Logger, converters));
 
         public void RegisterDefaultEncoders()
