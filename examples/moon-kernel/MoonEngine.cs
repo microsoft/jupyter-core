@@ -24,7 +24,7 @@ namespace Microsoft.Jupyter.Core
             ILogger<MoonEngine> logger
         ) : base(shell, context, logger)
         {
-            RegisterJsonSerEncoder
+            RegisterJsonEncoder(
                 new DynValueConverter()
             );
             var script = new Script();
