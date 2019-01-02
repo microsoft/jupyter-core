@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using Newtonsoft.Json;
 
 namespace Microsoft.Jupyter.Core
 {
@@ -13,14 +14,19 @@ namespace Microsoft.Jupyter.Core
 
     public class Table<TRow> : ITable
     {
+        [JsonIgnore]
         public List<(string, Func<TRow, string>)> Columns;
+
+        [JsonProperty("rows")]
         public List<TRow> Rows;
 
+        [JsonIgnore]
         public string[] Headers =>
             Columns
                 .Select(header => header.Item1)
                 .ToArray();
 
+        [JsonIgnore]
         public string[][] Cells =>
             Rows
                 .Select(
@@ -102,20 +108,20 @@ namespace Microsoft.Jupyter.Core
                     headers.Select((header, idxCol) =>
                         header.PadRight(widths[idxCol])
                     )
-                ));
-                text.Append("\n");
+                ).TrimEnd());
+                text.Append(Environment.NewLine);
                 text.Append(String.Join(" ",
                     widths.Select(width => new String('-', width))
-                ));
-                text.Append("\n");
+                ).TrimEnd());
+                text.Append(Environment.NewLine);
                 foreach (var row in cells)
                 {
                     text.Append(String.Join(" ",
                         row.Select(
                             (cell, idxCol) => cell.PadRight(widths[idxCol])
                         )
-                    ));
-                    text.Append("\n");
+                    ).TrimEnd());
+                    text.Append(Environment.NewLine);
                 }
 
 

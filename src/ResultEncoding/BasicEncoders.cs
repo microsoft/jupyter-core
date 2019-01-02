@@ -43,7 +43,7 @@ namespace Microsoft.Jupyter.Core
         public EncodedData? Encode(object displayable)
         {
             if (displayable == null) throw new ArgumentNullException(nameof(displayable));
-            displayable?.ToString()?.ToEncodedData();
+            return displayable?.ToString()?.ToEncodedData();
         }
     }
 

@@ -31,7 +31,7 @@ steps:
   displayName: "Add IMoon kernel to Jupyter."
   workingDirectory: examples/moon-kernel
 
-- script: py.test tests/
+- script: py.test tests/protocol/
   displayName: "Run Jupyter protocol tests."
   workingDirectory: .
 
