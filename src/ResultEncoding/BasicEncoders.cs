@@ -23,6 +23,7 @@ namespace Microsoft.Jupyter.Core
 
         public EncodedData? Encode(object displayable)
         {
+            if (displayable == null) throw new ArgumentNullException(nameof(displayable));
             try
             {
                 var serialized = JsonConvert.SerializeObject(displayable, converters);
@@ -39,8 +40,11 @@ namespace Microsoft.Jupyter.Core
     public class PlainTextResultEncoder : IResultEncoder
     {
         public string MimeType => MimeTypes.PlainText;
-        public EncodedData? Encode(object displayable) =>
-            displayable.ToString().ToEncodedData();
+        public EncodedData? Encode(object displayable)
+        {
+            if (displayable == null) throw new ArgumentNullException(nameof(displayable));
+            displayable?.ToString()?.ToEncodedData();
+        }
     }
 
     public class ListToTextResultEncoder : IResultEncoder
@@ -48,13 +52,14 @@ namespace Microsoft.Jupyter.Core
         public string MimeType => MimeTypes.PlainText;
         public EncodedData? Encode(object displayable)
         {
+            if (displayable == null) throw new ArgumentNullException(nameof(displayable));
             if (displayable is string)
             {
                 return null;
             }
             else if (displayable is IEnumerable enumerable)
             {
-                return String.Join("\n",
+                return String.Join(", ",
                     enumerable.Cast<object>().Select(item => item.ToString())
                 ).ToEncodedData();
             }
@@ -67,13 +72,14 @@ namespace Microsoft.Jupyter.Core
         public string MimeType => MimeTypes.Html;
         public EncodedData? Encode(object displayable)
         {
+            if (displayable == null) throw new ArgumentNullException(nameof(displayable));
             if (displayable is string)
             {
                 return null;
             }
             else if (displayable is IEnumerable enumerable)
             {
-                var list = String.Join("\n",
+                var list = String.Join("",
                     from object item in enumerable
                     select $"<li>{item}</li>"
                 );
@@ -101,6 +107,7 @@ namespace Microsoft.Jupyter.Core
 
         public EncodedData? Encode(object displayable)
         {
+            if (displayable == null) throw new ArgumentNullException(nameof(displayable));
             return encode(displayable);
         }
     }

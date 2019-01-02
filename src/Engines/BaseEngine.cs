@@ -36,14 +36,23 @@ namespace Microsoft.Jupyter.Core
                 this.engine = engine;
             }
 
-            public void Display(object displayable) =>
+            public void Display(object displayable)
+            {
+                if (displayable == null) throw new ArgumentNullException(nameof(displayable));
                 engine.WriteDisplayData(parent, displayable);
+            }
 
-            public void Stderr(string message) =>
+            public void Stderr(string message)
+            {
+                if (message == null) throw new ArgumentNullException(nameof(message));
                 engine.WriteToStream(parent, StreamName.StandardError, message);
+            }
 
-            public void Stdout(string message) =>
+            public void Stdout(string message)
+            {
+                if (message == null) throw new ArgumentNullException(nameof(message));
                 engine.WriteToStream(parent, StreamName.StandardOut, message);
+            }
         }
 
         public int ExecutionCount { get; protected set; }
@@ -88,17 +97,18 @@ namespace Microsoft.Jupyter.Core
             RegisterDefaultEncoders();
         }
 
-        public void RegisterDisplayEncoder(IResultEncoder serializer)
+        public void RegisterDisplayEncoder(IResultEncoder encoder)
         {
-            if (serializers.ContainsKey(serializer.MimeType))
+            if (encoder == null) throw new ArgumentNullException(nameof(encoder));
+            if (serializers.ContainsKey(encoder.MimeType))
             {
-                this.serializers[serializer.MimeType].Add(serializer);
+                this.serializers[encoder.MimeType].Add(encoder);
             }
             else
             {
-                this.serializers[serializer.MimeType] = new List<IResultEncoder>
+                this.serializers[encoder.MimeType] = new List<IResultEncoder>
                 {
-                    serializer
+                    encoder
                 };
             }
         }
@@ -123,6 +133,7 @@ namespace Microsoft.Jupyter.Core
 
         internal MimeBundle EncodeForDisplay(object displayable)
         {
+            if (displayable == null) throw new ArgumentNullException(nameof(displayable));
             // Each serializer contributes what it can for a given object,
             // and we take the union of their contributions, with preference
             // given to the last serializers registered.
@@ -286,6 +297,7 @@ namespace Microsoft.Jupyter.Core
 
         private void WriteDisplayData(Message parent, object displayable)
         {
+            if (displayable == null) throw new ArgumentNullException(nameof(displayable));
             var serialized = EncodeForDisplay(displayable);
             // Send the engine's output to stdout.
             this.ShellServer.SendIoPubMessage(
