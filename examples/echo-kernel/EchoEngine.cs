@@ -17,7 +17,7 @@ namespace Microsoft.Jupyter.Core
             IOptions<KernelContext> context,
             ILogger<EchoEngine> logger
         ) : base(shell, context, logger) { }
-Encoder
+
         public override ExecutionResult ExecuteMundane(string input, Action<string> stdout, Action<string> stderr)
         {
             return input.ToExecutionResult();
