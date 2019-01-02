@@ -187,6 +187,13 @@ namespace Microsoft.Jupyter.Core
             }
         }
 
+        public static EncodedData ToEncodedData(this string data) =>
+            new EncodedData
+            {
+                Data = data,
+                Metadata = null
+            };
+
         public static ExecutionResult ToExecutionResult(this ExecuteStatus status) =>
             new ExecutionResult
             {
@@ -209,6 +216,12 @@ namespace Microsoft.Jupyter.Core
             }
 
             return dict;
+        }
+
+        public static void Deconstruct<TKey, TValue>(this KeyValuePair<TKey, TValue> entry, out TKey key, out TValue value)
+        {
+            key = entry.Key;
+            value = entry.Value;
         }
 
     }

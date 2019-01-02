@@ -13,50 +13,63 @@ namespace Microsoft.Jupyter.Core
         private readonly ILogger logger;
         private readonly JsonConverter[] converters;
 
+        public string MimeType => MimeTypes.Json;
+
         public JsonResultEncoder(ILogger logger = null, JsonConverter[] converters = null)
         {
             this.logger = logger;
             this.converters = converters ?? new JsonConverter[] {};
         }
 
-        public IEnumerable<EncodedData> Encode(object displayable)
+        public EncodedData? Encode(object displayable)
         {
-            EncodedData? encoded = null;
             try
             {
-                encoded = new EncodedData
-                {
-                    MimeType = "application/json",
-                    Data = JsonConvert.SerializeObject(displayable, converters)
-                };
+                var serialized = JsonConvert.SerializeObject(displayable, converters);
+                return serialized.ToEncodedData();
             }
             catch (Exception ex)
             {
                 logger?.LogWarning(ex, "Failed to serialize display data of type {Type}.", displayable.GetType().ToString());
+                return null;
             }
-            return encoded.AsEnumerable();
         }
     }
 
     public class PlainTextResultEncoder : IResultEncoder
     {
-        public IEnumerable<EncodedData> Encode(object displayable)
-        {
-            yield return new EncodedData
-            {
-                MimeType = MimeTypes.PlainText,
-                Data = displayable.ToString()
-            };
-        }
+        public string MimeType => MimeTypes.PlainText;
+        public EncodedData? Encode(object displayable) =>
+            displayable.ToString().ToEncodedData();
     }
 
-    public class ListResultEncoder : IResultEncoder
+    public class ListToTextResultEncoder : IResultEncoder
     {
-        public IEnumerable<EncodedData> Encode(object displayable)
+        public string MimeType => MimeTypes.PlainText;
+        public EncodedData? Encode(object displayable)
         {
             if (displayable is string)
             {
-                yield break;
+                return null;
+            }
+            else if (displayable is IEnumerable enumerable)
+            {
+                return String.Join("\n",
+                    enumerable.Cast<object>().Select(item => item.ToString())
+                ).ToEncodedData();
+            }
+            else return null;
+        }
+    }
+
+    public class ListToHtmlResultEncoder : IResultEncoder
+    {
+        public string MimeType => MimeTypes.Html;
+        public EncodedData? Encode(object displayable)
+        {
+            if (displayable is string)
+            {
+                return null;
             }
             else if (displayable is IEnumerable enumerable)
             {
@@ -64,19 +77,9 @@ namespace Microsoft.Jupyter.Core
                     from object item in enumerable
                     select $"<li>{item}</li>"
                 );
-                yield return new EncodedData
-                {
-                    MimeType = MimeTypes.PlainText,
-                    Data = String.Join("\n",
-                        enumerable.Cast<object>().Select(item => item.ToString())
-                    )
-                };
-                yield return new EncodedData
-                {
-                    MimeType = MimeTypes.Html,
-                    Data = $"<ul>{list}</ul>"
-                };
+                return $"<ul>{list}</ul>".ToEncodedData();
             }
+            else return null;
         }
     }
 

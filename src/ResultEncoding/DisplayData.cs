@@ -40,14 +40,14 @@ namespace Microsoft.Jupyter.Core
 
     public struct EncodedData
     {
-        public string MimeType;
         public string Data;
         public string Metadata;
     }
 
     public interface IResultEncoder
     {
-        IEnumerable<EncodedData> Encode(object displayable);
+        string MimeType { get; }
+        EncodedData? Encode(object displayable);
     }
 
 }

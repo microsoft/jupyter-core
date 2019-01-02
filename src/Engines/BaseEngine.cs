@@ -48,7 +48,7 @@ namespace Microsoft.Jupyter.Core
 
         public int ExecutionCount { get; protected set; }
         protected List<string> History;
-        private List<IResultEncoder> serializers = new List<IResultEncoder>();
+        private Dictionary<string, List<IResultEncoder>> serializers = new Dictionary<string, List<IResultEncoder>>();
         private readonly ImmutableDictionary<string, MethodInfo> magicMethods;
 
         public IShellServer ShellServer { get; }
@@ -88,8 +88,20 @@ namespace Microsoft.Jupyter.Core
             RegisterDefaultEncoders();
         }
 
-        public void RegisterDisplayEncoder(IResultEncoder serializer) =>
-            this.serializers.Add(serializer);
+        public void RegisterDisplayEncoder(IResultEncoder serializer)
+        {
+            if (serializers.ContainsKey(serializer.MimeType))
+            {
+                this.serializers[serializer.MimeType].Add(serializer);
+            }
+            else
+            {
+                this.serializers[serializer.MimeType] = new List<IResultEncoder>
+                {
+                    serializer
+                };
+            }
+        }
 
         public void RegisterJsonEncoder(params JsonConverter[] converters) =>
             RegisterDisplayEncoder(new JsonResultEncoder(this.Logger, converters));
@@ -97,8 +109,10 @@ namespace Microsoft.Jupyter.Core
         public void RegisterDefaultEncoders()
         {
             RegisterDisplayEncoder(new PlainTextResultEncoder());
-            RegisterDisplayEncoder(new ListResultEncoder());
-            RegisterDisplayEncoder(new TableDisplaySerializer());
+            RegisterDisplayEncoder(new ListToTextResultEncoder());
+            RegisterDisplayEncoder(new ListToHtmlResultEncoder());
+            RegisterDisplayEncoder(new TableToTextDisplayEncoder());
+            RegisterDisplayEncoder(new TableToHtmlDisplayEncoder());
         }
 
         internal MimeBundle EncodeForDisplay(object displayable)
@@ -107,20 +121,23 @@ namespace Microsoft.Jupyter.Core
             // and we take the union of their contributions, with preference
             // given to the last serializers registered.
             var displayData = MimeBundle.Empty();
-            foreach (var serializer in serializers)
+            foreach ((var mimeType, var encoders) in serializers)
             {
-                var serialized = serializer.Encode(displayable);
-                if (serialized == null)
+                foreach (var encoder in encoders)
                 {
-                    continue;
-                }
-
-                foreach (var encodedData in serialized)
-                {
-                    displayData.Data[encodedData.MimeType] = encodedData.Data;
-                    if (encodedData.Metadata != null)
+                    var encoded = encoder.Encode(displayable);
+                    if (encoded == null)
                     {
-                        displayData.Metadata[encodedData.MimeType] = encodedData.Metadata;
+                        continue;
+                    }
+                    else
+                    {
+                        displayData.Data[mimeType] = encoded.Value.Data;
+                        if (encoded.Value.Metadata != null)
+                        {
+                            displayData.Metadata[mimeType] = encoded.Value.Metadata;
+                        }
+                        break;
                     }
                 }
             }

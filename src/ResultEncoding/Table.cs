@@ -31,9 +31,52 @@ namespace Microsoft.Jupyter.Core
                 .ToArray();
     }
 
-    public class TableDisplaySerializer : IResultEncoder
+    public class TableToHtmlDisplayEncoder : IResultEncoder
     {
-        public IEnumerable<EncodedData> Encode(object displayable)
+        public string MimeType => MimeTypes.Html;
+        public EncodedData? Encode(object displayable)
+        {
+            if (displayable is ITable table)
+            {
+                var headers = table.Headers;
+                var cells = table.Cells;
+
+                return new EncodedData
+                {
+                    Data =
+                        "<table>" +
+                            "<thead>" +
+                                "<tr>" +
+                                    String.Join("",
+                                        headers.Select(
+                                            header => $"<th>{header}</th>"
+                                        )
+                                    ) +
+                                "</tr>" +
+                            "</thead>" +
+                            "<tbody>" +
+                                String.Join("",
+                                    cells.Select(row =>
+                                        "<tr>" +
+                                        String.Join("",
+                                            row.Select(
+                                                cell => $"<td>{cell}</td>"
+                                            )
+                                        ) +
+                                        "</tr>"
+                                    )
+                                ) +
+                            "</tbody>" +
+                        "</table>"
+                };
+            } else return null;
+        }
+    }
+
+    public class TableToTextDisplayEncoder : IResultEncoder
+    {
+        public string MimeType => MimeTypes.PlainText;
+        public EncodedData? Encode(object displayable)
         {
             if (displayable is ITable table)
             {
@@ -76,44 +119,8 @@ namespace Microsoft.Jupyter.Core
                 }
 
 
-                return new EncodedData[]
-                {
-                    new EncodedData
-                    {
-                        MimeType = MimeTypes.PlainText,
-                        Data = text.ToString()
-                    },
-                    new EncodedData
-                    {
-                        MimeType = MimeTypes.Html,
-                        Data = 
-                            "<table>" +
-                                "<thead>" +
-                                    "<tr>" +
-                                        String.Join("",
-                                            headers.Select(
-                                                header => $"<th>{header}</th>"
-                                            )
-                                        ) +
-                                    "</tr>" +
-                                "</thead>" +
-                                "<tbody>" +
-                                    String.Join("",
-                                        cells.Select(row =>
-                                            "<tr>" +
-                                            String.Join("",
-                                                row.Select(
-                                                    cell => $"<td>{cell}</td>"
-                                                )
-                                            ) +
-                                            "</tr>"
-                                        )
-                                    ) +
-                                "</tbody>" +
-                            "</table>"
-                    }
-                };
-            } else return new EncodedData[] { };
+                return text.ToString().ToEncodedData();
+            } else return null;
         }
     }
 }
