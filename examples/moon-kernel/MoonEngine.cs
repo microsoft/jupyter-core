@@ -37,7 +37,7 @@ namespace Microsoft.Jupyter.Core
                             list.Select(item => $"- {item}")
                         );
                     }
-                    else return null;
+                    else return $"`{displayable}`";
                 }
             );
             var script = new Script();
