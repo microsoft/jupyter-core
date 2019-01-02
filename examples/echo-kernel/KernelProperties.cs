@@ -26,7 +26,7 @@ namespace Microsoft.Jupyter.Core
             // The MIME type of the language implemented by the kernel.
             // This property is used mainly for providing "plain" downloads from
             // Jupyter clients.
-            LanguageMimeType = "text/plain",
+            LanguageMimeType = MimeTypes.PlainText,
             // The file extension for source files written in the language
             // implemented by the kernel.
             // This property is used mainly for providing "plain" downloads from

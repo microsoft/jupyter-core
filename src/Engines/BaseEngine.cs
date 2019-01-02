@@ -8,6 +8,7 @@ using System.Linq;
 using System.Reflection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Newtonsoft.Json;
 
 namespace Microsoft.Jupyter.Core
 {
@@ -26,6 +27,7 @@ namespace Microsoft.Jupyter.Core
     {
         public int ExecutionCount { get; protected set; }
         protected List<string> History;
+        private List<IResultEncoder> serializers = new List<IResultEncoder>();
         private readonly ImmutableDictionary<string, MethodInfo> magicMethods;
 
         public IShellServer ShellServer { get; }
@@ -61,16 +63,53 @@ namespace Microsoft.Jupyter.Core
                     pair => pair.Name,
                     pair => pair.method
                 );
+
+            RegisterDefaultEncoders();
         }
 
-        public void Start()
+        public void RegisterDisplayEncoder(IResultEncoder serializer) =>
+            this.serializers.Add(serializer);
+
+        public void RegisterJsonEncoder(params JsonConverter[] converters) =>
+            RegisterDisplayEncoder(new JsonResultEncoder(this.Logger, converters));
+
+        public void RegisterDefaultEncoders()
+        {
+            RegisterDisplayEncoder(new PlainTextResultEncoder());
+            RegisterDisplayEncoder(new ListResultEncoder());
+        }
+
+        internal MimeBundle EncodeForDisplay(object displayable)
+        {
+            // Each serializer contributes what it can for a given object,
+            // and we take the union of their contributions, with preference
+            // given to the last serializers registered.
+            var displayData = MimeBundle.Empty();
+            foreach (var serializer in serializers)
+            {
+                var serialized = serializer.Encode(displayable);
+                if (serialized == null)
+                {
+                    continue;
+                }
+
+                foreach (var encodedData in serialized)
+                {
+                    displayData.Data[encodedData.MimeType] = encodedData.Data;
+                    displayData.Metadata[encodedData.MimeType] = encodedData.Metadata;
+                }
+            }
+            return displayData;
+        }
+
+        public virtual void Start()
         {
             this.ShellServer.KernelInfoRequest += OnKernelInfoRequest;
             this.ShellServer.ExecuteRequest += OnExecuteRequest;
             this.ShellServer.ShutdownRequest += OnShutdownRequest;
         }
 
-        public void OnKernelInfoRequest(Message message)
+        public virtual void OnKernelInfoRequest(Message message)
         {
             this.ShellServer.SendShellMessage(
                 new Message
@@ -89,7 +128,7 @@ namespace Microsoft.Jupyter.Core
             );
         }
 
-        public void OnExecuteRequest(Message message)
+        public virtual void OnExecuteRequest(Message message)
         {
             this.Logger.LogDebug($"Asked to execute code:\n{((ExecuteRequestContent)message.Content).Code}");
 
@@ -116,8 +155,9 @@ namespace Microsoft.Jupyter.Core
             );
 
             // Send the engine's output as an execution result.
-            if (engineResponse.Output != null && engineResponse.Output.Count > 0)
+            if (engineResponse.Output != null)
             {
+                var serialized = EncodeForDisplay(engineResponse.Output);
                 this.ShellServer.SendIoPubMessage(
                     new Message
                     {
@@ -127,7 +167,8 @@ namespace Microsoft.Jupyter.Core
                         Content = new ExecuteResultContent
                         {
                             ExecutionCount = this.ExecutionCount,
-                            Data = engineResponse.Output
+                            Data = serialized.Data,
+                            Metadata = serialized.Metadata
                         },
                         Header = new MessageHeader
                         {
@@ -172,7 +213,7 @@ namespace Microsoft.Jupyter.Core
             );
         }
 
-        public void OnShutdownRequest(Message message)
+        public virtual void OnShutdownRequest(Message message)
         {
             System.Environment.Exit(0);
         }
@@ -197,7 +238,7 @@ namespace Microsoft.Jupyter.Core
         }
 
 
-        public bool ContainsMagic(string input)
+        public virtual bool ContainsMagic(string input)
         {
             var parts = input.Trim().Split(new[] { ' ' }, 2);
             return magicMethods.ContainsKey(parts[0]);
@@ -205,7 +246,7 @@ namespace Microsoft.Jupyter.Core
 
         public virtual bool IsMagic(string input) => ContainsMagic(input);
 
-        public ExecutionResult Execute(string input, Action<string> stdout, Action<string> stderr)
+        public virtual ExecutionResult Execute(string input, Action<string> stdout, Action<string> stderr)
         {
             this.ExecutionCount++;
             this.History.Add(input);
@@ -224,7 +265,7 @@ namespace Microsoft.Jupyter.Core
 
         }
 
-        public ExecutionResult ExecuteMagic(string input, Action<string> stdout, Action<string> stderr)
+        public virtual ExecutionResult ExecuteMagic(string input, Action<string> stdout, Action<string> stderr)
         {
             // Which magic command do we have? Split up until the first space.
             var parts = input.Split(new[] { ' ' }, 2);
