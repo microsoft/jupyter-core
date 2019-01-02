@@ -64,19 +64,19 @@ namespace Microsoft.Jupyter.Core
                     pair => pair.method
                 );
 
-            RegisterDefaultSerializers();
+            RegisterDefaultEncoders();
         }
 
-        public void RegisterDisplaySerializer(IResultEncoder serializer) =>
+        public void RegisterDisplayEncoder(IResultEncoder serializer) =>
             this.serializers.Add(serializer);
 
         public void RegisterJsonSerializer(params JsonConverter[] converters) =>
-            RegisterDisplaySerializer(new JsonResultEncoder(this.Logger, converters));
+            RegisterDisplayEncoder(new JsonResultEncoder(this.Logger, converters));
 
-        public void RegisterDefaultSerializers()
+        public void RegisterDefaultEncoders()
         {
-            RegisterDisplaySerializer(new PlainTextResultEncoder());
-            RegisterDisplaySerializer(new ListResultEncoder());
+            RegisterDisplayEncoder(new PlainTextResultEncoder());
+            RegisterDisplayEncoder(new ListResultEncoder());
         }
 
         internal MimeBundle EncodeForDisplay(object displayable)
