@@ -453,3 +453,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# DocFX
+docs/api
+_site/
