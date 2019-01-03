@@ -9,6 +9,12 @@ steps:
   inputs:
     version: 2.1.300
 
+- task: DotNetCoreCLI@2
+  displayName: "Run unit tests on Core library."
+  inputs:
+    command: test
+    projects: tests/core/core.csproj
+
 - task: CondaEnvironment@1
   displayName: 'Create conda environment for hosting Jupyter kernels'
   inputs:
@@ -31,7 +37,7 @@ steps:
   displayName: "Add IMoon kernel to Jupyter."
   workingDirectory: examples/moon-kernel
 
-- script: py.test tests/
+- script: py.test tests/protocol/
   displayName: "Run Jupyter protocol tests."
   workingDirectory: .
 

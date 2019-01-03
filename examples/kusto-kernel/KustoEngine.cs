@@ -28,12 +28,12 @@ namespace Microsoft.Jupyter.Core
             this.settings = settings;
         }
 
-        public override ExecutionResult ExecuteMundane(string input, Action<string> stdout, Action<string> stderr)
+        public override ExecutionResult ExecuteMundane(string input, IChannel channel)
         {
             var table = "";
             if (client == null)
             {
-                stderr("Not connected to a cluster.");
+                channel.Stderr("Not connected to a cluster.");
                 return new ExecutionResult
                 {
                     Status = ExecuteStatus.Error,
@@ -71,7 +71,7 @@ namespace Microsoft.Jupyter.Core
                     }
                 };
             } catch (Exception ex) {
-                stderr(ex.ToString());
+                channel.Stderr(ex.ToString());
                 return new ExecutionResult
                 {
                     Status = ExecuteStatus.Error,
@@ -82,7 +82,7 @@ namespace Microsoft.Jupyter.Core
         }
 
         [MagicCommand("%connect")]
-        public ExecutionResult ExecuteConnect(string input, Action<string> stdout, Action<string> stderr)
+        public ExecutionResult ExecuteConnect(string input, IChannel channel)
         {
             try
             {
@@ -94,7 +94,7 @@ namespace Microsoft.Jupyter.Core
             }
             catch (KustoClientInvalidConnectionStringException ex)
             {
-                stderr(ex.ToString());
+                channel.Stderr(ex.ToString());
                 return new ExecutionResult
                 {
                     Output = null,

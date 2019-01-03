@@ -25,9 +25,39 @@ namespace Microsoft.Jupyter.Core
 
     public abstract class BaseEngine : IExecutionEngine
     {
+
+        private class ExecutionChannel : IChannel
+        {
+            private readonly Message parent;
+            private readonly BaseEngine engine;
+            public ExecutionChannel(BaseEngine engine, Message parent)
+            {
+                this.parent = parent;
+                this.engine = engine;
+            }
+
+            public void Display(object displayable)
+            {
+                if (displayable == null) throw new ArgumentNullException(nameof(displayable));
+                engine.WriteDisplayData(parent, displayable);
+            }
+
+            public void Stderr(string message)
+            {
+                if (message == null) throw new ArgumentNullException(nameof(message));
+                engine.WriteToStream(parent, StreamName.StandardError, message);
+            }
+
+            public void Stdout(string message)
+            {
+                if (message == null) throw new ArgumentNullException(nameof(message));
+                engine.WriteToStream(parent, StreamName.StandardOut, message);
+            }
+        }
+
         public int ExecutionCount { get; protected set; }
         protected List<string> History;
-        private List<IResultEncoder> serializers = new List<IResultEncoder>();
+        private Dictionary<string, List<IResultEncoder>> serializers = new Dictionary<string, List<IResultEncoder>>();
         private readonly ImmutableDictionary<string, MethodInfo> magicMethods;
 
         public IShellServer ShellServer { get; }
@@ -67,8 +97,27 @@ namespace Microsoft.Jupyter.Core
             RegisterDefaultEncoders();
         }
 
-        public void RegisterDisplayEncoder(IResultEncoder serializer) =>
-            this.serializers.Add(serializer);
+        public void RegisterDisplayEncoder(IResultEncoder encoder)
+        {
+            if (encoder == null) throw new ArgumentNullException(nameof(encoder));
+            if (serializers.ContainsKey(encoder.MimeType))
+            {
+                this.serializers[encoder.MimeType].Add(encoder);
+            }
+            else
+            {
+                this.serializers[encoder.MimeType] = new List<IResultEncoder>
+                {
+                    encoder
+                };
+            }
+        }
+
+        public void RegisterDisplayEncoder(string mimeType, Func<object, EncodedData?> encoder) =>
+            RegisterDisplayEncoder(new FuncResultEncoder(mimeType, encoder));
+
+        public void RegisterDisplayEncoder(string mimeType, Func<object, string> encoder) =>
+            RegisterDisplayEncoder(new FuncResultEncoder(mimeType, encoder));
 
         public void RegisterJsonEncoder(params JsonConverter[] converters) =>
             RegisterDisplayEncoder(new JsonResultEncoder(this.Logger, converters));
@@ -76,27 +125,37 @@ namespace Microsoft.Jupyter.Core
         public void RegisterDefaultEncoders()
         {
             RegisterDisplayEncoder(new PlainTextResultEncoder());
-            RegisterDisplayEncoder(new ListResultEncoder());
+            RegisterDisplayEncoder(new ListToTextResultEncoder());
+            RegisterDisplayEncoder(new ListToHtmlResultEncoder());
+            RegisterDisplayEncoder(new TableToTextDisplayEncoder());
+            RegisterDisplayEncoder(new TableToHtmlDisplayEncoder());
         }
 
         internal MimeBundle EncodeForDisplay(object displayable)
         {
+            if (displayable == null) throw new ArgumentNullException(nameof(displayable));
             // Each serializer contributes what it can for a given object,
             // and we take the union of their contributions, with preference
             // given to the last serializers registered.
             var displayData = MimeBundle.Empty();
-            foreach (var serializer in serializers)
+            foreach ((var mimeType, var encoders) in serializers)
             {
-                var serialized = serializer.Encode(displayable);
-                if (serialized == null)
+                foreach (var encoder in encoders)
                 {
-                    continue;
-                }
-
-                foreach (var encodedData in serialized)
-                {
-                    displayData.Data[encodedData.MimeType] = encodedData.Data;
-                    displayData.Metadata[encodedData.MimeType] = encodedData.Metadata;
+                    var encoded = encoder.Encode(displayable);
+                    if (encoded == null)
+                    {
+                        continue;
+                    }
+                    else
+                    {
+                        displayData.Data[mimeType] = encoded.Value.Data;
+                        if (encoded.Value.Metadata != null)
+                        {
+                            displayData.Metadata[mimeType] = encoded.Value.Metadata;
+                        }
+                        break;
+                    }
                 }
             }
             return displayData;
@@ -150,8 +209,7 @@ namespace Microsoft.Jupyter.Core
             // Run in the engine.
             var engineResponse = Execute(
                 ((ExecuteRequestContent)message.Content).Code,
-                text => WriteToStream(message, StreamName.StandardOut, text),
-                text => WriteToStream(message, StreamName.StandardError, text)
+                new ExecutionChannel(this, message)
             );
 
             // Send the engine's output as an execution result.
@@ -237,6 +295,27 @@ namespace Microsoft.Jupyter.Core
             );
         }
 
+        private void WriteDisplayData(Message parent, object displayable)
+        {
+            if (displayable == null) throw new ArgumentNullException(nameof(displayable));
+            var serialized = EncodeForDisplay(displayable);
+            // Send the engine's output to stdout.
+            this.ShellServer.SendIoPubMessage(
+                new Message
+                {
+                    Header = new MessageHeader
+                    {
+                        MessageType = "display_data"
+                    },
+                    Content = new DisplayDataContent
+                    {
+                        Data = serialized.Data,
+                        Metadata = serialized.Metadata,
+                        Transient = null
+                    }
+                }.AsReplyTo(parent)
+            );
+        }
 
         public virtual bool ContainsMagic(string input)
         {
@@ -246,7 +325,7 @@ namespace Microsoft.Jupyter.Core
 
         public virtual bool IsMagic(string input) => ContainsMagic(input);
 
-        public virtual ExecutionResult Execute(string input, Action<string> stdout, Action<string> stderr)
+        public virtual ExecutionResult Execute(string input, IChannel channel)
         {
             this.ExecutionCount++;
             this.History.Add(input);
@@ -256,16 +335,16 @@ namespace Microsoft.Jupyter.Core
 
             if (IsMagic(input))
             {
-                return ExecuteMagic(input, stdout, stderr);
+                return ExecuteMagic(input, channel);
             }
             else
             {
-                return ExecuteMundane(input, stdout, stderr);
+                return ExecuteMundane(input, channel);
             }
 
         }
 
-        public virtual ExecutionResult ExecuteMagic(string input, Action<string> stdout, Action<string> stderr)
+        public virtual ExecutionResult ExecuteMagic(string input, IChannel channel)
         {
             // Which magic command do we have? Split up until the first space.
             var parts = input.Split(new[] { ' ' }, 2);
@@ -273,21 +352,42 @@ namespace Microsoft.Jupyter.Core
             {
                 var method = magicMethods[parts[0]];
                 var remainingInput = parts.Length > 1 ? parts[1] : "";
-                return (ExecutionResult)method.Invoke(this, new object[] { remainingInput, stdout, stderr });
+                return (ExecutionResult)method.Invoke(this, new object[] { remainingInput, channel });
             }
             else
             {
-                stderr($"Magic command {parts[0]} not recognized.");
+                channel.Stderr($"Magic command {parts[0]} not recognized.");
                 return ExecuteStatus.Error.ToExecutionResult();
             }
         }
 
-        public abstract ExecutionResult ExecuteMundane(string input, Action<string> stdout, Action<string> stderr);
+        public abstract ExecutionResult ExecuteMundane(string input, IChannel channel);
 
         [MagicCommand("%history")]
-        public ExecutionResult ExecuteHistory(string input, Action<string> stdout, Action<string> stderr)
+        public ExecutionResult ExecuteHistory(string input, IChannel channel)
         {
             return History.ToExecutionResult();
+        }
+
+        [MagicCommand("%version")]
+        public ExecutionResult ExecuteVersion(string input, IChannel channel)
+        {
+            var versions = new [] {
+                (Context.Properties.KernelName, Context.Properties.KernelVersion),
+                ("Jupyter Core", typeof(BaseEngine).Assembly.GetName().Version.ToString())
+            };
+            channel.Display(
+                new Table<(string, string)>
+                {
+                    Columns = new List<(string, Func<(string, string), string>)>
+                    {
+                        ("Component", item => item.Item1),
+                        ("Version", item => item.Item2)
+                    },
+                    Rows = versions.ToList()
+                }
+            );
+            return ExecuteStatus.Ok.ToExecutionResult();
         }
     }
 }

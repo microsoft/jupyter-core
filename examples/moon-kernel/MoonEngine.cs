@@ -27,21 +27,34 @@ namespace Microsoft.Jupyter.Core
             RegisterJsonEncoder(
                 new DynValueConverter()
             );
+            RegisterDisplayEncoder(
+                MimeTypes.Markdown,
+                displayable => {
+                    if (displayable is IEnumerable<string> list)
+                    {
+                        return String.Join(
+                            "\n",
+                            list.Select(item => $"- {item}")
+                        );
+                    }
+                    else return $"`{displayable}`";
+                }
+            );
             var script = new Script();
             script.Options.DebugPrint = str => printFn?.Invoke(str);
             interp = new ReplInterpreter(script);
         }
 
-        public override ExecutionResult ExecuteMundane(string input, Action<string> stdout, Action<string> stderr)
+        public override ExecutionResult ExecuteMundane(string input, IChannel channel)
         {
             var oldAction = printFn;
-            printFn = stdout;
+            printFn = channel.Stdout;
             try
             {
                 var result = interp.Evaluate(input);
                 if (result == null)
                 {
-                    stderr("Interpreter returned null, this is typically due to incomplete input.");
+                    channel.Stderr("Interpreter returned null, this is typically due to incomplete input.");
                     return ExecuteStatus.Error.ToExecutionResult();
                 }
                 else if (result.ToObject() != null)
@@ -55,7 +68,7 @@ namespace Microsoft.Jupyter.Core
             }
             catch (Exception ex)
             {
-                stderr(ex.ToString());
+                channel.Stderr(ex.ToString());
                 return ExecuteStatus.Error.ToExecutionResult();
             }
             finally

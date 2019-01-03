@@ -216,7 +216,7 @@ namespace Microsoft.Jupyter.Core
 
         // Don't use this! It's deprecated at the protocol level.
         [JsonProperty("payload")]
-        public List<Dictionary<string, object>> Payloads { get; set; }
+        public List<Dictionary<string, object>> Payloads { get; set; } = new List<Dictionary<string, object>>();
 
         [JsonProperty("user_expressions")]
         public Dictionary<string, object> UserExpressions { get; set; }
@@ -264,4 +264,25 @@ namespace Microsoft.Jupyter.Core
         [JsonProperty("text")]
         public string Text { get; set; }
     }
+
+    [JsonObject(MemberSerialization.OptIn)]
+    public class TransientDisplayData
+    {
+        [JsonProperty("display_id")]
+        public string DisplayId { get; set; }
+    }
+
+    [JsonObject(MemberSerialization.OptIn)]
+    public class DisplayDataContent : MessageContent
+    {
+        [JsonProperty("data")]
+        public Dictionary<string, string> Data { get; set; }
+
+        [JsonProperty("metadata")]
+        public Dictionary<string, string> Metadata { get; set; } = new Dictionary<string, string>();
+
+        [JsonProperty("transient")]
+        public TransientDisplayData Transient { get; set; } = null;
+    }
+
 }
