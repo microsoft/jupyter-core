@@ -107,7 +107,7 @@ namespace Microsoft.Jupyter.Core
         /// </summary>
         /// <remarks>
         ///      This constructor should only be called by a dependency
-        //       injection framework.
+        ///      injection framework.
         /// </remarks>
         public BaseEngine(
                 IShellServer shell,
