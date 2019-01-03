@@ -12,6 +12,14 @@ using Newtonsoft.Json;
 
 namespace Microsoft.Jupyter.Core
 {
+    /// <summary>
+    ///      Marks that a given method implements the given magic command.
+    /// </summary>
+    /// <remarks>
+    ///      Each magic command method must have the signature
+    ///      <c>ExecuteResult (string, IChannel)</c>, similar to
+    ///      <ref>BaseEngine.ExecuteMundane</ref>.
+    /// </remarks>
     [System.AttributeUsage(System.AttributeTargets.Method)]
     public class MagicCommandAttribute : System.Attribute
     {
@@ -132,10 +140,14 @@ namespace Microsoft.Jupyter.Core
             RegisterDefaultEncoders();
         }
 
+        #region Display and Result Encoding
+
         /// <summary>
-        ///      Adds a new display encoder to the list of encoders used by this
+        ///      Adds a new result encoder to the list of encoders used by this
         ///      engine to format data for output as execution results and rich
         ///      displays.
+        ///      The most recently added result encoders take precedence over
+        ///      any result encoders that have already been registered.
         /// </summary>
         public void RegisterDisplayEncoder(IResultEncoder encoder)
         {
@@ -153,9 +165,22 @@ namespace Microsoft.Jupyter.Core
         public void RegisterDisplayEncoder(string mimeType, Func<object, string> encoder) =>
             RegisterDisplayEncoder(new FuncResultEncoder(mimeType, encoder));
 
+        /// <summary>
+        ///      Adds a new result encoder that serializes its output to JSON.
+        ///      Serialization failures are logged, but are not written out
+        ///      as results or displayed.
+        /// </summary>
+        /// <param name="converters">
+        ///      Additional JSON converters to be used when serializing results
+        ///      into JSON.
+        /// </param>
         public void RegisterJsonEncoder(params JsonConverter[] converters) =>
             RegisterDisplayEncoder(new JsonResultEncoder(this.Logger, converters));
 
+        /// <summary>
+        ///      Registers a default set of result encoders that is sufficient
+        ///      for most basic kernel operations.
+        /// </summary>
         public void RegisterDefaultEncoders()
         {
             RegisterDisplayEncoder(new PlainTextResultEncoder());
@@ -195,6 +220,10 @@ namespace Microsoft.Jupyter.Core
             return displayData;
         }
 
+        #endregion
+
+        #region Lifecycle
+
         public virtual void Start()
         {
             this.ShellServer.KernelInfoRequest += OnKernelInfoRequest;
@@ -202,6 +231,17 @@ namespace Microsoft.Jupyter.Core
             this.ShellServer.ShutdownRequest += OnShutdownRequest;
         }
 
+        #endregion
+
+        #region Event Handlers
+
+        /// <summary>
+        ///       Called by shell servers to report kernel information to the
+        ///       client. By default, this method responds by converting
+        ///       the kernel properties stored in this engine's context to a
+        ///       <c>kernel_info</c> Jupyter message.
+        /// </summary>
+        /// <param name="message">The original request from the client.</param>
         public virtual void OnKernelInfoRequest(Message message)
         {
             this.ShellServer.SendShellMessage(
@@ -310,6 +350,8 @@ namespace Microsoft.Jupyter.Core
             System.Environment.Exit(0);
         }
 
+        #endregion
+
         private void WriteToStream(Message parent, StreamName stream, string text)
         {
             // Send the engine's output to stdout.
@@ -395,7 +437,21 @@ namespace Microsoft.Jupyter.Core
             }
         }
 
+        /// <summary>
+        ///      Executes a given input cell, returning any result from the
+        ///      execution.
+        /// </summary>
+        /// <param name="input">The input sent by the client for execution.</param>
+        /// <param name="channel">The display channel used to present information back to the client.</param>
+        /// <returns>
+        ///     A value indicating whether the input executed
+        ///     correctly, and what value should be reported back to the client
+        ///     as the result of executing the input (e.g.: as the result typeset
+        ///     as <c>Out[12]:</c> outputs).
+        /// </returns>
         public abstract ExecutionResult ExecuteMundane(string input, IChannel channel);
+
+        #region Example Magic Commands
 
         [MagicCommand("%history")]
         public ExecutionResult ExecuteHistory(string input, IChannel channel)
@@ -423,5 +479,8 @@ namespace Microsoft.Jupyter.Core
             );
             return ExecuteStatus.Ok.ToExecutionResult();
         }
+
+        #endregion
+
     }
 }
