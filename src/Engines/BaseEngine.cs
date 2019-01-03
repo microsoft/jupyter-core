@@ -222,6 +222,52 @@ namespace Microsoft.Jupyter.Core
 
         #endregion
 
+        #region Display Messaging
+
+        private void WriteToStream(Message parent, StreamName stream, string text)
+        {
+            // Send the engine's output to stdout.
+            this.ShellServer.SendIoPubMessage(
+                new Message
+                {
+                    Header = new MessageHeader
+                    {
+                        MessageType = "stream"
+                    },
+                    Content = new StreamContent
+                    {
+                        StreamName = stream,
+                        Text = text
+                    }
+                }.AsReplyTo(parent)
+            );
+        }
+
+        private void WriteDisplayData(Message parent, object displayable)
+        {
+            if (displayable == null) throw new ArgumentNullException(nameof(displayable));
+            var serialized = EncodeForDisplay(displayable);
+            // Send the engine's output to stdout.
+            this.ShellServer.SendIoPubMessage(
+                new Message
+                {
+                    Header = new MessageHeader
+                    {
+                        MessageType = "display_data"
+                    },
+                    Content = new DisplayDataContent
+                    {
+                        Data = serialized.Data,
+                        Metadata = serialized.Metadata,
+                        Transient = null
+                    }
+                }.AsReplyTo(parent)
+            );
+        }
+
+
+        #endregion
+
         #region Lifecycle
 
         public virtual void Start()
@@ -352,46 +398,7 @@ namespace Microsoft.Jupyter.Core
 
         #endregion
 
-        private void WriteToStream(Message parent, StreamName stream, string text)
-        {
-            // Send the engine's output to stdout.
-            this.ShellServer.SendIoPubMessage(
-                new Message
-                {
-                    Header = new MessageHeader
-                    {
-                        MessageType = "stream"
-                    },
-                    Content = new StreamContent
-                    {
-                        StreamName = stream,
-                        Text = text
-                    }
-                }.AsReplyTo(parent)
-            );
-        }
-
-        private void WriteDisplayData(Message parent, object displayable)
-        {
-            if (displayable == null) throw new ArgumentNullException(nameof(displayable));
-            var serialized = EncodeForDisplay(displayable);
-            // Send the engine's output to stdout.
-            this.ShellServer.SendIoPubMessage(
-                new Message
-                {
-                    Header = new MessageHeader
-                    {
-                        MessageType = "display_data"
-                    },
-                    Content = new DisplayDataContent
-                    {
-                        Data = serialized.Data,
-                        Metadata = serialized.Metadata,
-                        Transient = null
-                    }
-                }.AsReplyTo(parent)
-            );
-        }
+        #region Command Parsing
 
         public virtual bool ContainsMagic(string input)
         {
@@ -400,6 +407,10 @@ namespace Microsoft.Jupyter.Core
         }
 
         public virtual bool IsMagic(string input) => ContainsMagic(input);
+
+        #endregion
+
+        #region Command Execution
 
         public virtual ExecutionResult Execute(string input, IChannel channel)
         {
@@ -450,6 +461,8 @@ namespace Microsoft.Jupyter.Core
         ///     as <c>Out[12]:</c> outputs).
         /// </returns>
         public abstract ExecutionResult ExecuteMundane(string input, IChannel channel);
+
+        #endregion
 
         #region Example Magic Commands
 
