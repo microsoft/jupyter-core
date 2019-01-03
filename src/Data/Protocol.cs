@@ -12,7 +12,10 @@ using System.Runtime.Serialization;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Microsoft.Jupyter.Core
+// Ideally, end users should not need to directly know about the classes we
+// use to serialize and de-serialize messages, so we guard those in a new
+// namespace.
+namespace Microsoft.Jupyter.Core.Protocol
 {
 
     [JsonObject(MemberSerialization.OptIn)]
@@ -126,36 +129,6 @@ namespace Microsoft.Jupyter.Core
         public bool Restart { get; set; }
     }
 
-    [JsonObject(MemberSerialization.OptIn)]
-    public class LanguageInfo
-    {
-        [JsonProperty("name")]
-        public string Name { get; set; }
-
-        // FIXME: This also needs to be populated.
-        // NB: This property refers to the version of the Q# language supported,
-        //     and ★not★ to the version of the IQ# kernel supporting that
-        //     language. In most cases, we expect that the two will agree,
-        //     however.
-        [JsonProperty("version")]
-        public string LanguageVersion {get; set;}
-
-        [JsonProperty("mimetype")]
-        public string MimeType {get; set;}
-
-        [JsonProperty("file_extension")]
-        public string FileExtension {get; set;}
-    }
-
-    [JsonObject(MemberSerialization.OptIn)]
-    public class HelpLinks
-    {
-        [JsonProperty("text")]
-        public string Text { get; set; }
-
-        [JsonProperty("url")]
-        public Uri Url { get; set; }
-    }
 
     [JsonObject(MemberSerialization.OptIn)]
     public class ExecuteRequestContent : MessageContent
@@ -177,19 +150,6 @@ namespace Microsoft.Jupyter.Core
 
         [JsonProperty("stop_on_error")]
         public bool StopOnError { get; set; }
-    }
-
-    [JsonConverter(typeof(StringEnumConverter))]
-    public enum ExecuteStatus
-    {
-        [EnumMember(Value="ok")]
-        Ok,
-
-        [EnumMember(Value="error")]
-        Error,
-
-        [EnumMember(Value="abort")]
-        Abort
     }
 
     [JsonObject(MemberSerialization.OptIn)]
@@ -222,19 +182,6 @@ namespace Microsoft.Jupyter.Core
         public Dictionary<string, object> UserExpressions { get; set; }
     }
 
-    [JsonConverter(typeof(StringEnumConverter))]
-    public enum ExecutionState
-    {
-        [EnumMember(Value="busy")]
-        Busy,
-
-        [EnumMember(Value="idle")]
-        Idle,
-
-        [EnumMember(Value="starting")]
-        Starting
-    }
-
     [JsonObject(MemberSerialization.OptIn)]
     public class KernelStatusContent : MessageContent
     {
@@ -242,18 +189,6 @@ namespace Microsoft.Jupyter.Core
         public ExecutionState ExecutionState { get; set; }
     }
 
-    [JsonConverter(typeof(StringEnumConverter))]
-    public enum StreamName
-    {
-        [EnumMember(Value="stdin")]
-        StandardIn,
-
-        [EnumMember(Value="stdout")]
-        StandardOut,
-
-        [EnumMember(Value="stderr")]
-        StandardError
-    }
 
     [JsonObject(MemberSerialization.OptIn)]
     public class StreamContent : MessageContent

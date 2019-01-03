@@ -18,9 +18,7 @@ namespace Microsoft.Jupyter.Core
             ILogger<EchoEngine> logger
         ) : base(shell, context, logger) { }
 
-        public override ExecutionResult ExecuteMundane(string input, IChannel channel)
-        {
-            return input.ToExecutionResult();
-        }
+        public override ExecutionResult ExecuteMundane(string input, IChannel channel) =>
+            input.ToExecutionResult();
     }
 }

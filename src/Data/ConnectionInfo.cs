@@ -1,26 +1,18 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
 using System.Net;
-using System.Runtime.Serialization;
+using System.Text;
+using System.Linq;
+using NetMQ;
+using Newtonsoft.Json;
+using System.Collections.Generic;
+using System.Security.Cryptography;
+using System;
+using Microsoft.Jupyter.Core.Protocol;
 
 namespace Microsoft.Jupyter.Core
 {
-    public enum Transport
-    {
-        [EnumMember(Value="tcp")]
-        Tcp
-    }
-
-    public enum SignatureScheme
-    {
-        [EnumMember(Value="hmac-sha256")]
-        HmacSha256
-    }
-
     /// <summary>
     ///     Represents the information stored in a Jupyter connection file.
     ///     See https://jupyter-client.readthedocs.io/en/stable/kernels.html#connection-files
@@ -127,57 +119,4 @@ namespace Microsoft.Jupyter.Core
         #endregion
 
     }
-
-    [JsonObject(MemberSerialization.OptIn)]
-    public class KernelSpec
-    {
-        [JsonProperty("argv")]
-        public List<string> Arguments;
-
-        [JsonProperty("display_name")]
-        public string DisplayName;
-
-        [JsonProperty("language")]
-        public string LanguageName;
-    }
-
-    public class KernelProperties
-    {
-        public string FriendlyName { get; set; }
-        public string KernelName { get; set; }
-        public string KernelVersion { get; set; }
-        public string DisplayName { get; set; }
-
-        public string LanguageName { get; set; }
-        public string LanguageVersion { get; set; }
-        public string LanguageMimeType { get; set; }
-        public string LanguageFileExtension { get; set; }
-
-        public string Description { get; set; }
-
-        public HelpLinks[] HelpLinks { get; set; }
-
-        public LanguageInfo AsLanguageInfo()
-        {
-            return new LanguageInfo
-            {
-                Name = LanguageName,
-                LanguageVersion = LanguageVersion,
-                MimeType = LanguageMimeType,
-                FileExtension = LanguageFileExtension
-            };
-        }
-
-        internal KernelInfoReplyContent AsKernelInfoReply()
-        {
-            return new KernelInfoReplyContent
-            {
-                Implementation = KernelName,
-                ImplementationVersion = KernelVersion,
-                LanguageInfo = AsLanguageInfo(),
-                HelpLinks = HelpLinks
-            };
-        }
-    }
-
 }

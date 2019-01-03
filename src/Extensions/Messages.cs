@@ -9,6 +9,7 @@ using Newtonsoft.Json;
 using System.Collections.Generic;
 using System.Security.Cryptography;
 using System;
+using Microsoft.Jupyter.Core.Protocol;
 
 namespace Microsoft.Jupyter.Core
 {
@@ -131,6 +132,6 @@ namespace Microsoft.Jupyter.Core
 
             socket.SendMultipartMessage(zmqMessage);
         }
-
+    }
 
 }
