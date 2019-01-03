@@ -12,25 +12,8 @@ using System;
 
 namespace Microsoft.Jupyter.Core
 {
-    public static class Extensions
+    public static partial class Extensions
     {
-
-        public static byte[] HexToBytes(this string hex)
-        {
-            var bytes = new byte[hex.Length / 2];
-            foreach (var idxHexPair in Enumerable.Range(0, hex.Length / 2))
-            {
-                bytes[idxHexPair] = Convert.ToByte(hex.Substring(2 * idxHexPair, 2), 16);
-            }
-            return bytes;
-        }
-
-        // NB: This is a polyfill for the equivalent .NET Core 2.0 method, not available in .NET Standard 2.0.
-        public static TValue GetValueOrDefault<TKey, TValue>(this IDictionary<TKey, TValue> dict, TKey key, TValue @default)
-        {
-            var success = dict.TryGetValue(key, out var value);
-            return success ? value : @default;
-        }
 
         /// <summary>
         ///     Receives an entire Jupyter wire protocol message from a given
@@ -149,80 +132,5 @@ namespace Microsoft.Jupyter.Core
             socket.SendMultipartMessage(zmqMessage);
         }
 
-        public static byte[] ComputeHash(this HMAC hmac, params byte[][] blobs)
-        {
-            hmac.Initialize();
-            // TODO: generalize to allow encodings other than UTF-8.
-            foreach (var blob in blobs.Take(blobs.Length - 1))
-            {
-                hmac.TransformBlock(blob, 0, blob.Length, null, 0);
-            }
-            var lastBlob = blobs[blobs.Length - 1];
-            hmac.TransformFinalBlock(lastBlob, 0, lastBlob.Length);
-            return hmac.Hash;
-        }
 
-        public static byte[] ComputeHash(this HMAC hmac, params object[] blobs)
-        {
-            return hmac.ComputeHash(
-                blobs
-                    .Select(blob => Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(blob)))
-                    .ToArray()
-            );
-        }
-
-        public static bool IsEqual(this byte[] actual, byte[] expected)
-        {
-            return Enumerable
-                .Zip(actual, expected, (actualByte, expectedByte) => actualByte == expectedByte)
-                .Aggregate((acc, nextBool) => (acc && nextBool));
-        }
-
-        public static IEnumerable<T> AsEnumerable<T>(this Nullable<T> nullable)
-        where T : struct
-        {
-            if (nullable.HasValue)
-            {
-                yield return nullable.Value;
-            }
-        }
-
-        public static EncodedData ToEncodedData(this string data) =>
-            new EncodedData
-            {
-                Data = data,
-                Metadata = null
-            };
-
-        public static ExecutionResult ToExecutionResult(this ExecuteStatus status) =>
-            new ExecutionResult
-            {
-                Status = status,
-                Output = null
-            };
-
-        public static ExecutionResult ToExecutionResult(this object output, ExecuteStatus status = ExecuteStatus.Ok) =>
-            new ExecutionResult
-            {
-                Status = status,
-                Output = output
-            };
-
-        public static Dictionary<TKey, TValue> Update<TKey, TValue>(this Dictionary<TKey, TValue> dict, Dictionary<TKey, TValue> other)
-        {
-            foreach (var item in other)
-            {
-                dict[item.Key] = item.Value;
-            }
-
-            return dict;
-        }
-
-        public static void Deconstruct<TKey, TValue>(this KeyValuePair<TKey, TValue> entry, out TKey key, out TValue value)
-        {
-            key = entry.Key;
-            value = entry.Value;
-        }
-
-    }
 }
