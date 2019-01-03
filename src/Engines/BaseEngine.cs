@@ -23,6 +23,15 @@ namespace Microsoft.Jupyter.Core
         }
     }
 
+    /// <summary>
+    ///      Abstract class used to provide the basic functionality needed by
+    ///      the evaluation engine for each kernel.
+    ///      At a minimum, each subclass must provide an implementation of the
+    ///      method used for executing mundane (non-magic) cells.
+    ///      Subclasses can additionally provide new magic commands, display
+    ///      encoders, and can override communication with the various socket
+    ///      servers that make up the kernel.
+    /// </summary>
     public abstract class BaseEngine : IExecutionEngine
     {
 
@@ -55,17 +64,43 @@ namespace Microsoft.Jupyter.Core
             }
         }
 
+        /// <summary>
+        ///      The number of cells that have been executed since the start of
+        ///      this engine. Used by clients to typeset cell numbers, e.g.:
+        ///      <c>In[12]:</c>.
+        /// </summary>
         public int ExecutionCount { get; protected set; }
         protected List<string> History;
-        private Dictionary<string, List<IResultEncoder>> serializers = new Dictionary<string, List<IResultEncoder>>();
+        private Dictionary<string, Stack<IResultEncoder>> serializers = new Dictionary<string, Stack<IResultEncoder>>();
         private readonly ImmutableDictionary<string, MethodInfo> magicMethods;
 
+        /// <summary>
+        ///     The shell server used to communicate with the clients over the
+        ///     shell IOPub socket.
+        /// </summary>
         public IShellServer ShellServer { get; }
 
+        /// <summary>
+        ///      The context object for this engine, recording how the kernel
+        ///      was invoked, and metadata about the language supported by the
+        ///      kernel.
+        /// </summary>
         public KernelContext Context { get; }
 
+        /// <summary>
+        ///     A logger used to report errors, warnings, and debugging
+        ///     information internal to the operation of the engine.
+        /// </summary>
         public ILogger Logger { get; }
 
+        /// <summary>
+        ///      Constructs an engine that communicates with a given server,
+        ///      and uses a given kernel context.
+        /// </summary>
+        /// <remarks>
+        ///      This constructor should only be called by a dependency
+        //       injection framework.
+        /// </remarks>
         public BaseEngine(
                 IShellServer shell,
                 IOptions<KernelContext> context,
@@ -97,20 +132,19 @@ namespace Microsoft.Jupyter.Core
             RegisterDefaultEncoders();
         }
 
+        /// <summary>
+        ///      Adds a new display encoder to the list of encoders used by this
+        ///      engine to format data for output as execution results and rich
+        ///      displays.
+        /// </summary>
         public void RegisterDisplayEncoder(IResultEncoder encoder)
         {
             if (encoder == null) throw new ArgumentNullException(nameof(encoder));
-            if (serializers.ContainsKey(encoder.MimeType))
+            if (!serializers.ContainsKey(encoder.MimeType))
             {
-                this.serializers[encoder.MimeType].Add(encoder);
+                this.serializers[encoder.MimeType] = new Stack<IResultEncoder>();
             }
-            else
-            {
-                this.serializers[encoder.MimeType] = new List<IResultEncoder>
-                {
-                    encoder
-                };
-            }
+            this.serializers[encoder.MimeType].Push(encoder);
         }
 
         public void RegisterDisplayEncoder(string mimeType, Func<object, EncodedData?> encoder) =>
