@@ -13,12 +13,46 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Microsoft.Jupyter.Core
 {
+    /// <summary>
+    ///      The main application for Jupyter kernels, used both to install
+    ///      kernelspecs into Jupyter and to start new kernel instances.
+    /// </summary>
     public class KernelApplication : CommandLineApplication
     {
         private readonly KernelProperties properties;
 
         private readonly Action<ServiceCollection> configure;
 
+        /// <summary>
+        ///     Constructs a new application given properties describing a
+        ///     particular kernel, and an action to configure services.
+        /// </summary>
+        /// <param name="properties">
+        ///     Properties describing this kernel to clients.
+        /// </param>
+        /// <param name="configure">
+        ///     An action to configure services for the new kernel application.
+        ///     This action is called after all other kernel services have been
+        ///     configured, and is typically used to provide an implementation
+        ///     of <see cref="IExecutionEngine" /> along with any services
+        ///     required by that engine.
+        /// </param>
+        /// <example>
+        ///     To instantiate and run a kernel application using the
+        ///     <c>EchoEngine</c> class:
+        ///     <code>
+        ///         public static int Main(string[] args) =>
+        ///             new KernelApplication(
+        ///                 properties,
+        ///                 serviceCollection =>
+        ///                      serviceCollection
+        ///                     .AddSingleton&lt;IExecutionEngine, EchoEngine&gt;();
+        ///             )
+        ///             .WithDefaultCommands()
+        ///             .Execute(args);
+        ///         }
+        ///     </code>
+        /// </example>
         public KernelApplication(KernelProperties properties, Action<ServiceCollection> configure)
         {
             this.properties = properties;
@@ -36,10 +70,26 @@ namespace Microsoft.Jupyter.Core
             );
         }
 
+        /// <summary>
+        ///      <para>
+        ///          Adds all default commands to this kernel application
+        ///          (installation and kernel instantiation).
+        ///      </para>
+        ///      <seealso cref="AddInstallCommand" />
+        ///      <seealso cref="AddKernelCommand" />
+        /// </summary>
         public KernelApplication WithDefaultCommands() => this
             .AddInstallCommand()
             .AddKernelCommand();
 
+        /// <summary>
+        ///     Adds a command to allow users to install this kernel into
+        ///     Jupyter's list of available kernels.
+        /// </summary>
+        /// <remarks>
+        ///     This command assumes that the command <c>jupyter</c> is on the
+        ///     user's <c>PATH</c>.
+        /// </remarks>
         public KernelApplication AddInstallCommand()
         {
             this.Command(
@@ -73,6 +123,14 @@ namespace Microsoft.Jupyter.Core
             return this;
         }
 
+        /// <summary>
+        ///     Adds a command to allow Jupyter to start instances of this
+        ///     kernel.
+        /// </summary>
+        /// <remarks>
+        ///     This command is typically not run by end users directly, but
+        ///     by Jupyter on the user's behalf.
+        /// </remarks>
         public KernelApplication AddKernelCommand()
         {
             this.Command(
@@ -105,6 +163,16 @@ namespace Microsoft.Jupyter.Core
             return this;
         }
 
+        /// <summary>
+        ///      Given an action, runs the action and then returns with either
+        ///      0 or a negative error code, depending on whether the action
+        ///      completed successfully or threw an exception.
+        /// </summary>
+        /// <param name="func">An action to be run.</param>
+        /// <returns>
+        ///     Either <c>0</c> if <c>func</c> completed successfully
+        ///     or <c>-1</c> if <c>func</c> threw an exception.
+        /// </returns>
         public int ReturnExitCode(Action func)
         {
             try {
@@ -116,6 +184,24 @@ namespace Microsoft.Jupyter.Core
             }
         }
 
+        /// <summary>
+        ///      Installs this kernel into Jupyter's list of available kernels.
+        /// </summary>
+        /// <param name="develop">
+        ///      If <c>true</c>, this kernel will be installed in develop mode,
+        ///      such that the kernel is rebuilt whenever a new instance is
+        ///      started.
+        /// </param>
+        /// <param name="logLevel">
+        ///      The default logging level to be used when starting new kernel
+        ///      instances.
+        /// </param>
+        /// <remarks>
+        ///      This method dynamically generates a new <c>kernelspec.json</c>
+        ///      file representing the kernel properties provided when the
+        ///      application was constructed, along with options such as the
+        ///      development mode.
+        /// </remarks>
         public int InstallKernelSpec(bool develop, LogLevel logLevel)
         {
             var kernelSpecDir = "";
@@ -178,6 +264,11 @@ namespace Microsoft.Jupyter.Core
         }
 
 
+        /// <summary>
+        ///     Launches a new kernel instance, loading all relevant connection
+        ///     parameters from the given connection file as provided by
+        ///     Jupyter.
+        /// </summary>
         public int StartKernel(string connectionFile, LogLevel minLevel = LogLevel.Debug)
         {
             // Begin by setting up the dependency injection that we will need
