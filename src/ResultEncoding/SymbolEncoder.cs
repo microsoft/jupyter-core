@@ -12,7 +12,7 @@ namespace Microsoft.Jupyter.Core
         {
             if (displayable is MagicSymbol symbol)
             {
-                return $"{symbol.Name}:\n{symbol.Documentation.Value.Summary ?? ""}"
+                return $"{symbol.Name}:\n{symbol.Documentation.Summary ?? ""}"
                     .ToEncodedData();
             }
             else return null;
@@ -37,7 +37,7 @@ namespace Microsoft.Jupyter.Core
 
                 return (
                     $"<h4><i class=\"fa fas {Icons[symbol.Kind]}\"></i> {symbol.Name}</h4>" +
-                    $"<p>{symbol.Documentation.Value.Summary ?? ""}</p>"
+                    $"<p>{symbol.Documentation.Summary ?? ""}</p>"
                 ).ToEncodedData();
 
             }
