@@ -4,13 +4,13 @@ using System.Collections.Generic;
 namespace Microsoft.Jupyter.Core
 {
 
-    public class SymbolToTextResultEncoder : IResultEncoder
+    public class MagicSymbolToTextResultEncoder : IResultEncoder
     {
         public string MimeType => MimeTypes.PlainText;
 
         public EncodedData? Encode(object displayable)
         {
-            if (displayable is Symbol symbol)
+            if (displayable is MagicSymbol symbol)
             {
                 return $"{symbol.Name}:\n{symbol.Documentation.Value.Summary ?? ""}"
                     .ToEncodedData();
@@ -19,7 +19,7 @@ namespace Microsoft.Jupyter.Core
         }
     }
 
-    public class SymbolToHtmlResultEncoder : IResultEncoder
+    public class MagicSymbolToHtmlResultEncoder : IResultEncoder
     {
         private readonly ImmutableDictionary<SymbolKind, string>
             Icons = new Dictionary<SymbolKind, string>
@@ -32,7 +32,7 @@ namespace Microsoft.Jupyter.Core
 
         public EncodedData? Encode(object displayable)
         {
-            if (displayable is Symbol symbol)
+            if (displayable is MagicSymbol symbol)
             {
 
                 return (

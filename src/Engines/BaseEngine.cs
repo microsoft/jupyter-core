@@ -42,6 +42,14 @@ namespace Microsoft.Jupyter.Core
         }
     }
 
+    public class MagicSymbol : ISymbol
+    {
+        public string Name { get; set; }
+        public SymbolKind Kind { get; set; }
+        public Lazy<Documentation> Documentation { get; set; }
+        
+    }
+
     public class MagicCommandResolver : ISymbolResolver
     {
         private IDictionary<string, MagicCommandAttribute> attributes;
@@ -50,12 +58,12 @@ namespace Microsoft.Jupyter.Core
             this.attributes = attributes;
         }
 
-        public Symbol? Resolve(string symbolName)
+        public ISymbol Resolve(string symbolName)
         {
             if (this.attributes.ContainsKey(symbolName))
             {
                 var attr = this.attributes[symbolName];
-                return new Symbol
+                return new MagicSymbol
                 {
                     Name = attr.Name,
                     Documentation = new Lazy<Documentation>(() => attr.Documentation),
@@ -196,7 +204,7 @@ namespace Microsoft.Jupyter.Core
             resolvers.Add(resolver);
         }
 
-        public Symbol? Resolve(string symbolName)
+        public ISymbol Resolve(string symbolName)
         {
             foreach (var resolver in resolvers)
             {
@@ -256,8 +264,8 @@ namespace Microsoft.Jupyter.Core
             RegisterDisplayEncoder(new ListToHtmlResultEncoder());
             RegisterDisplayEncoder(new TableToTextDisplayEncoder());
             RegisterDisplayEncoder(new TableToHtmlDisplayEncoder());
-            RegisterDisplayEncoder(new SymbolToTextResultEncoder());
-            RegisterDisplayEncoder(new SymbolToHtmlResultEncoder());
+            RegisterDisplayEncoder(new MagicSymbolToTextResultEncoder());
+            RegisterDisplayEncoder(new MagicSymbolToHtmlResultEncoder());
         }
 
         internal MimeBundle EncodeForDisplay(object displayable)

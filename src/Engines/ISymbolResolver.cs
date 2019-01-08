@@ -14,16 +14,15 @@ namespace Microsoft.Jupyter.Core
         public string Summary;
     }
 
-    public struct Symbol
+    public interface ISymbol
     {
-        public string Name;
-        public Lazy<Documentation> Documentation;
-        public SymbolKind Kind;
+        string Name { get; }
+        SymbolKind Kind { get; }
     }
 
     public interface ISymbolResolver
     {
-        Symbol? Resolve(string symbolName);
+        ISymbol Resolve(string symbolName);
     }
 
 }
