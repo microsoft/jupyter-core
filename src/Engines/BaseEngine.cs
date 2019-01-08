@@ -25,10 +25,44 @@ namespace Microsoft.Jupyter.Core
     public class MagicCommandAttribute : System.Attribute
     {
         public readonly string Name;
+        public readonly Documentation Documentation;
 
-        public MagicCommandAttribute(string name)
+        public MagicCommandAttribute(
+            string name,
+            string summary = null,
+            string fullDocumentation = null
+        )
         {
             Name = name;
+            Documentation = new Documentation
+            {
+                Full = fullDocumentation,
+                Summary = summary
+            };
+        }
+    }
+
+    public class MagicCommandResolver : ISymbolResolver
+    {
+        private IDictionary<string, MagicCommandAttribute> attributes;
+        public MagicCommandResolver(IDictionary<string, MagicCommandAttribute> attributes)
+        {
+            this.attributes = attributes;
+        }
+
+        public Symbol? Resolve(string symbolName)
+        {
+            if (this.attributes.ContainsKey(symbolName))
+            {
+                var attr = this.attributes[symbolName];
+                return new Symbol
+                {
+                    Name = attr.Name,
+                    Documentation = attr.Documentation,
+                    Kind = SymbolKind.Magic
+                };
+            }
+            else return null;
         }
     }
 
@@ -81,7 +115,8 @@ namespace Microsoft.Jupyter.Core
         public int ExecutionCount { get; protected set; }
         protected List<string> History;
         private Dictionary<string, Stack<IResultEncoder>> serializers = new Dictionary<string, Stack<IResultEncoder>>();
-        private readonly ImmutableDictionary<string, MethodInfo> magicMethods;
+        private List<ISymbolResolver> resolvers = new List<ISymbolResolver>();
+        private readonly ImmutableDictionary<string, (MagicCommandAttribute, MethodInfo)> magicMethods;
 
         /// <summary>
         ///     The shell server used to communicate with the clients over the
@@ -121,24 +156,42 @@ namespace Microsoft.Jupyter.Core
             this.Logger = logger;
 
             History = new List<string>();
-            magicMethods = this
+            var magicMethods = this
                 .GetType()
                 .GetMethods()
                 .Where(
                     method => method.GetCustomAttributes(typeof(MagicCommandAttribute), inherit: true).Length > 0
                 )
                 .Select(
-                    method => (
-                        ((MagicCommandAttribute)method.GetCustomAttributes(typeof(MagicCommandAttribute), inherit: true).Single()).Name,
-                        method
-                    )
+                    method => {
+                        var attr = (
+                            (MagicCommandAttribute)
+                            method
+                            .GetCustomAttributes(typeof(MagicCommandAttribute), inherit: true)
+                            .Single()
+                        );
+                        return (attr, method);
+                    }
                 )
                 .ToImmutableDictionary(
-                    pair => pair.Name,
-                    pair => pair.method
+                    pair => pair.attr.Name,
+                    pair => (pair.attr, pair.method)
                 );
 
+            RegisterSymbolResolver(new MagicCommandResolver(
+                magicMethods
+                    .ToDictionary(
+                        item => item.Key,
+                        item => item.Value.attr
+                    )
+            ));
+
             RegisterDefaultEncoders();
+        }
+
+        public void RegisterSymbolResolver(ISymbolResolver resolver)
+        {
+            resolvers.Add(resolver);
         }
 
         #region Display and Result Encoding
@@ -438,7 +491,7 @@ namespace Microsoft.Jupyter.Core
             var parts = input.Split(new[] { ' ' }, 2);
             if (magicMethods.ContainsKey(parts[0]))
             {
-                var method = magicMethods[parts[0]];
+                (var attr, var method) = magicMethods[parts[0]];
                 var remainingInput = parts.Length > 1 ? parts[1] : "";
                 return (ExecutionResult)method.Invoke(this, new object[] { remainingInput, channel });
             }
