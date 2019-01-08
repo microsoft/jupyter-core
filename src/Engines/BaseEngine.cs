@@ -46,8 +46,7 @@ namespace Microsoft.Jupyter.Core
     {
         public string Name { get; set; }
         public SymbolKind Kind { get; set; }
-        public Lazy<Documentation> Documentation { get; set; }
-        
+        public Documentation Documentation { get; set; }
     }
 
     public class MagicCommandResolver : ISymbolResolver
@@ -66,7 +65,7 @@ namespace Microsoft.Jupyter.Core
                 return new MagicSymbol
                 {
                     Name = attr.Name,
-                    Documentation = new Lazy<Documentation>(() => attr.Documentation),
+                    Documentation = attr.Documentation,
                     Kind = SymbolKind.Magic
                 };
             }
