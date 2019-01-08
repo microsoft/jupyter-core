@@ -1,3 +1,5 @@
+using System;
+
 namespace Microsoft.Jupyter.Core
 {
     public enum SymbolKind
@@ -15,7 +17,7 @@ namespace Microsoft.Jupyter.Core
     public struct Symbol
     {
         public string Name;
-        public Documentation Documentation;
+        public Lazy<Documentation> Documentation;
         public SymbolKind Kind;
     }
 

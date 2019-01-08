@@ -58,7 +58,7 @@ namespace Microsoft.Jupyter.Core
                 return new Symbol
                 {
                     Name = attr.Name,
-                    Documentation = attr.Documentation,
+                    Documentation = new Lazy<Documentation>(() => attr.Documentation),
                     Kind = SymbolKind.Magic
                 };
             }
@@ -156,7 +156,7 @@ namespace Microsoft.Jupyter.Core
             this.Logger = logger;
 
             History = new List<string>();
-            var magicMethods = this
+            magicMethods = this
                 .GetType()
                 .GetMethods()
                 .Where(
@@ -182,17 +182,31 @@ namespace Microsoft.Jupyter.Core
                 magicMethods
                     .ToDictionary(
                         item => item.Key,
-                        item => item.Value.attr
+                        item => item.Value.Item1
                     )
             ));
 
             RegisterDefaultEncoders();
         }
 
+        #region Symbol Resolution
+
         public void RegisterSymbolResolver(ISymbolResolver resolver)
         {
             resolvers.Add(resolver);
         }
+
+        public Symbol? Resolve(string symbolName)
+        {
+            foreach (var resolver in resolvers)
+            {
+                var resolution = resolver.Resolve(symbolName);
+                if (resolution != null) return resolution;
+            }
+            return null;
+        }
+
+        #endregion
 
         #region Display and Result Encoding
 
@@ -242,6 +256,8 @@ namespace Microsoft.Jupyter.Core
             RegisterDisplayEncoder(new ListToHtmlResultEncoder());
             RegisterDisplayEncoder(new TableToTextDisplayEncoder());
             RegisterDisplayEncoder(new TableToHtmlDisplayEncoder());
+            RegisterDisplayEncoder(new SymbolToTextResultEncoder());
+            RegisterDisplayEncoder(new SymbolToHtmlResultEncoder());
         }
 
         internal MimeBundle EncodeForDisplay(object displayable)
@@ -462,6 +478,25 @@ namespace Microsoft.Jupyter.Core
 
         public virtual bool IsMagic(string input) => ContainsMagic(input);
 
+        public virtual bool IsHelp(string input, out string symbol)
+        {
+            var stripped = input.Trim();
+            if (stripped.StartsWith("?"))
+            {
+                symbol = stripped.Substring(1, stripped.Length - 1);
+                return true;
+            }
+            else if (stripped.EndsWith("?"))
+            {
+                symbol = stripped.Substring(0, stripped.Length - 1);
+                return true;
+            }
+            else {
+                symbol = null;
+                return false;
+            }
+        }
+
         #endregion
 
         #region Command Execution
@@ -474,7 +509,11 @@ namespace Microsoft.Jupyter.Core
             // We first check to see if the first token is a
             // magic command for this kernel.
 
-            if (IsMagic(input))
+            if (IsHelp(input, out var symbol))
+            {
+                return ExecuteHelp(symbol, channel);
+            }
+            else if (IsMagic(input))
             {
                 return ExecuteMagic(input, channel);
             }
@@ -483,6 +522,20 @@ namespace Microsoft.Jupyter.Core
                 return ExecuteMundane(input, channel);
             }
 
+        }
+
+        public virtual ExecutionResult ExecuteHelp(string symbolName, IChannel channel)
+        {
+            var symbol = Resolve(symbolName);
+            if (symbol == null)
+            {
+                channel.Stderr($"Symbol {symbolName} not found.");
+                return ExecuteStatus.Error.ToExecutionResult();
+            }
+            else
+            {
+                return symbol.ToExecutionResult();
+            }
         }
 
         public virtual ExecutionResult ExecuteMagic(string input, IChannel channel)
@@ -520,13 +573,17 @@ namespace Microsoft.Jupyter.Core
 
         #region Example Magic Commands
 
-        [MagicCommand("%history")]
+        [MagicCommand("%history",
+            summary: "Displays a list of commands run so far this session."
+        )]
         public ExecutionResult ExecuteHistory(string input, IChannel channel)
         {
             return History.ToExecutionResult();
         }
 
-        [MagicCommand("%version")]
+        [MagicCommand("%version",
+            summary: "Displays the version numbers for various components of this kernel."
+        )]
         public ExecutionResult ExecuteVersion(string input, IChannel channel)
         {
             var versions = new [] {

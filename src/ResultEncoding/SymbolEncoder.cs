@@ -12,7 +12,7 @@ namespace Microsoft.Jupyter.Core
         {
             if (displayable is Symbol symbol)
             {
-                return $"{symbol.Name}:\n{symbol.Documentation.Summary ?? ""}"
+                return $"{symbol.Name}:\n{symbol.Documentation.Value.Summary ?? ""}"
                     .ToEncodedData();
             }
             else return null;
@@ -28,15 +28,17 @@ namespace Microsoft.Jupyter.Core
                 [SymbolKind.Other] = "fa-terminal"
             }.ToImmutableDictionary();
 
-        public string MimeType => MimeTypes.PlainText;
+        public string MimeType => MimeTypes.Html;
 
         public EncodedData? Encode(object displayable)
         {
             if (displayable is Symbol symbol)
             {
 
-                return
-                    $"<h3><i class=\"fas {Icons[symbol.Kind]}\"></i>{symbol.Name}</h3>" +
+                return (
+                    $"<h4><i class=\"fa fas {Icons[symbol.Kind]}\"></i> {symbol.Name}</h4>" +
+                    $"<p>{symbol.Documentation.Value.Summary ?? ""}</p>"
+                ).ToEncodedData();
 
             }
             else return null;
