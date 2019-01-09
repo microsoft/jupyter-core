@@ -11,11 +11,15 @@ steps:
 
 - script: |
     pip install jupyter_kernel_test
-    # The version of pyzmq on Anaconda does not seem to work in Windows agents
-    # as of November 2018: https://github.com/zeromq/pyzmq/issues/852
+  displayName: 'Install additional dependencies from pip.'
+
+# The version of pyzmq on Anaconda does not seem to work in Windows agents
+# as of November 2018: https://github.com/zeromq/pyzmq/issues/852
+- script: |
     pip uninstall -y pyzmq
     pip install pyzmq
-  displayName: 'Install additional dependencies from pip.'
+  displayName: 'Fix pyzmq on Windows'
+  condition: and(succeeded(), eq(variables['Agent.OS'], 'Windows_NT'))
 
 - script: dotnet run -c $(Build.Configuration) -v n -- install --develop
   displayName: "Add IEcho kernel to Jupyter."
