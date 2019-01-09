@@ -21,7 +21,7 @@ namespace Microsoft.Jupyter.Core
 
     public class MagicSymbolToHtmlResultEncoder : IResultEncoder
     {
-        private readonly ImmutableDictionary<SymbolKind, string>
+        internal readonly ImmutableDictionary<SymbolKind, string>
             Icons = new Dictionary<SymbolKind, string>
             {
                 [SymbolKind.Magic] = "fa-magic",

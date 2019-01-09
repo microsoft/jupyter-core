@@ -137,5 +137,16 @@ namespace Microsoft.Jupyter.Core
                 }
             ));
         }
+
+        [TestMethod]
+        public void TestSymbolIcons()
+        {
+            var encoder = new MagicSymbolToHtmlResultEncoder();
+
+            foreach (SymbolKind kind in Enum.GetValues(typeof(SymbolKind)))
+            {
+                Assert.IsTrue(encoder.Icons.ContainsKey(kind));
+            }
+        }
     }
 }
