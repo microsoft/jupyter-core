@@ -1,4 +1,4 @@
-name: $(Build.Major).$(Build.Minor).$(Build.Patch)
+name: $(Build.Major).$(Build.Minor).$(BuildId)
 trigger:
 - master
 resources:
@@ -7,7 +7,7 @@ resources:
 variables:
   Build.Major: 1
   Build.Minor: 0
-  Build.Patch: $(Build.BuildId)
+  Build.Patch: $(BuildId)
   Build.Configuration: 'Release'
   VersioningScheme: 'byPrereleaseNumber'
 

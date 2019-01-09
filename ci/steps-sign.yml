@@ -31,7 +31,6 @@ steps:
     configuration: $(Build.Configuration)
     nobuild: true
     projects: src/jupyter-core.csproj
-    packDirectory: '$(System.DefaultWorkingDirectory)'
     versioningScheme: $(VersioningScheme)
 
 
@@ -39,7 +38,7 @@ steps:
   displayName: 'Signing: Nugets'
   inputs:
     ConnectedServiceName: CodeSign
-    FolderPath: '$(System.DefaultWorkingDirectory)'
+    FolderPath: '$(Build.ArtifactStagingDirectory)'
     Pattern: '*.nupkg'
     signConfigType: inlineSignParams
     inlineOperation: |

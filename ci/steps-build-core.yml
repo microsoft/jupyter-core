@@ -20,5 +20,4 @@ steps:
     command: pack
     configuration: $(Build.Configuration)
     projects: src/jupyter-core.csproj
-    packDirectory: '$(System.DefaultWorkingDirectory)'
     versioningScheme: $(VersioningScheme)
