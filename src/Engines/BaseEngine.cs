@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using Microsoft.Jupyter.Core.Protocol;
+using System.Diagnostics;
 
 namespace Microsoft.Jupyter.Core
 {
@@ -25,10 +26,78 @@ namespace Microsoft.Jupyter.Core
     public class MagicCommandAttribute : System.Attribute
     {
         public readonly string Name;
+        public readonly Documentation Documentation;
 
-        public MagicCommandAttribute(string name)
+        public MagicCommandAttribute(
+            string name,
+            string summary,
+            string fullDocumentation = null
+        )
         {
             Name = name;
+            Documentation = new Documentation
+            {
+                Full = fullDocumentation,
+                Summary = summary
+            };
+        }
+    }
+
+    public class MagicSymbol : ISymbol
+    {
+        public string Name { get; set; }
+        public SymbolKind Kind { get; set; }
+        public Documentation Documentation { get; set; }
+
+        public Func<string, IChannel, ExecutionResult> Execute { get; set; }
+    }
+
+    public class MagicCommandResolver : ISymbolResolver
+    {
+        private IExecutionEngine engine;
+        private IDictionary<string, (MagicCommandAttribute, MethodInfo)> methods;
+        public MagicCommandResolver(IExecutionEngine engine)
+        {
+            this.engine = engine;
+            methods = engine
+                .GetType()
+                .GetMethods()
+                .Where(
+                    method => method.GetCustomAttributes(typeof(MagicCommandAttribute), inherit: true).Length > 0
+                )
+                .Select(
+                    method => {
+                        var attr = (
+                            (MagicCommandAttribute)
+                            method
+                            .GetCustomAttributes(typeof(MagicCommandAttribute), inherit: true)
+                            .Single()
+                        );
+                        return (attr, method);
+                    }
+                )
+                .ToImmutableDictionary(
+                    pair => pair.attr.Name,
+                    pair => (pair.attr, pair.method)
+                );
+
+        }
+
+        public ISymbol Resolve(string symbolName)
+        {
+            if (this.methods.ContainsKey(symbolName))
+            {
+                (var attr, var method) = this.methods[symbolName];
+                return new MagicSymbol
+                {
+                    Name = attr.Name,
+                    Documentation = attr.Documentation,
+                    Kind = SymbolKind.Magic,
+                    Execute = (input, channel) =>
+                        (ExecutionResult)(method.Invoke(engine, new object[] { input, channel }))
+                };
+            }
+            else return null;
         }
     }
 
@@ -81,7 +150,8 @@ namespace Microsoft.Jupyter.Core
         public int ExecutionCount { get; protected set; }
         protected List<string> History;
         private Dictionary<string, Stack<IResultEncoder>> serializers = new Dictionary<string, Stack<IResultEncoder>>();
-        private readonly ImmutableDictionary<string, MethodInfo> magicMethods;
+        private List<ISymbolResolver> resolvers = new List<ISymbolResolver>();
+        private ISymbolResolver magicResolver;
 
         /// <summary>
         ///     The shell server used to communicate with the clients over the
@@ -121,25 +191,32 @@ namespace Microsoft.Jupyter.Core
             this.Logger = logger;
 
             History = new List<string>();
-            magicMethods = this
-                .GetType()
-                .GetMethods()
-                .Where(
-                    method => method.GetCustomAttributes(typeof(MagicCommandAttribute), inherit: true).Length > 0
-                )
-                .Select(
-                    method => (
-                        ((MagicCommandAttribute)method.GetCustomAttributes(typeof(MagicCommandAttribute), inherit: true).Single()).Name,
-                        method
-                    )
-                )
-                .ToImmutableDictionary(
-                    pair => pair.Name,
-                    pair => pair.method
-                );
+            magicResolver = new MagicCommandResolver(
+                this
+            );
+            RegisterSymbolResolver(magicResolver);
 
             RegisterDefaultEncoders();
         }
+
+        #region Symbol Resolution
+
+        public void RegisterSymbolResolver(ISymbolResolver resolver)
+        {
+            resolvers.Add(resolver);
+        }
+
+        public ISymbol Resolve(string symbolName)
+        {
+            foreach (var resolver in resolvers.EnumerateInReverse())
+            {
+                var resolution = resolver.Resolve(symbolName);
+                if (resolution != null) return resolution;
+            }
+            return null;
+        }
+
+        #endregion
 
         #region Display and Result Encoding
 
@@ -189,6 +266,8 @@ namespace Microsoft.Jupyter.Core
             RegisterDisplayEncoder(new ListToHtmlResultEncoder());
             RegisterDisplayEncoder(new TableToTextDisplayEncoder());
             RegisterDisplayEncoder(new TableToHtmlDisplayEncoder());
+            RegisterDisplayEncoder(new MagicSymbolToTextResultEncoder());
+            RegisterDisplayEncoder(new MagicSymbolToHtmlResultEncoder());
         }
 
         internal MimeBundle EncodeForDisplay(object displayable)
@@ -401,13 +480,39 @@ namespace Microsoft.Jupyter.Core
 
         #region Command Parsing
 
-        public virtual bool ContainsMagic(string input)
+        public virtual bool IsMagic(string input, out ISymbol symbol)
         {
             var parts = input.Trim().Split(new[] { ' ' }, 2);
-            return magicMethods.ContainsKey(parts[0]);
+            symbol = magicResolver.Resolve(parts[0]);
+            return symbol != null;
         }
 
-        public virtual bool IsMagic(string input) => ContainsMagic(input);
+        /// <summmary>
+        ///      Returns <c>true</c> if a given input is a request for help
+        ///      on a symbol. If this method returns true, then <c>symbol</c>
+        ///      will be populated with the resolution of the symbol targeted
+        ///      for help.
+        /// </summary>
+        /// <remarks>
+        ///      If an input is a request for help on an invalid symbol, then
+        ///      this method will return true, but <c>symbol</c> will be null.
+        /// </remarks>
+        public virtual bool IsHelp(string input, out ISymbol symbol)
+        {
+            var stripped = input.Trim();
+            string symbolName = null;
+            if (stripped.StartsWith("?"))
+            {
+                symbolName = stripped.Substring(1, stripped.Length - 1);
+            }
+            else if (stripped.EndsWith("?"))
+            {
+                symbolName = stripped.Substring(0, stripped.Length - 1);
+            }
+
+            symbol = symbolName != null ? Resolve(symbolName) : null;
+            return symbolName != null;
+        }
 
         #endregion
 
@@ -421,9 +526,13 @@ namespace Microsoft.Jupyter.Core
             // We first check to see if the first token is a
             // magic command for this kernel.
 
-            if (IsMagic(input))
+            if (IsHelp(input, out var helpSymbol))
             {
-                return ExecuteMagic(input, channel);
+                return ExecuteHelp(input, helpSymbol, channel);
+            }
+            else if (IsMagic(input, out var magicSymbol))
+            {
+                return ExecuteMagic(input, magicSymbol, channel);
             }
             else
             {
@@ -432,19 +541,35 @@ namespace Microsoft.Jupyter.Core
 
         }
 
-        public virtual ExecutionResult ExecuteMagic(string input, IChannel channel)
+        public virtual ExecutionResult ExecuteHelp(string input, ISymbol symbol, IChannel channel)
         {
-            // Which magic command do we have? Split up until the first space.
-            var parts = input.Split(new[] { ' ' }, 2);
-            if (magicMethods.ContainsKey(parts[0]))
+            if (symbol == null)
             {
-                var method = magicMethods[parts[0]];
-                var remainingInput = parts.Length > 1 ? parts[1] : "";
-                return (ExecutionResult)method.Invoke(this, new object[] { remainingInput, channel });
+                channel.Stderr($"Symbol not found.");
+                return ExecuteStatus.Error.ToExecutionResult();
             }
             else
             {
-                channel.Stderr($"Magic command {parts[0]} not recognized.");
+                return symbol.ToExecutionResult();
+            }
+        }
+
+        public virtual ExecutionResult ExecuteMagic(string input, ISymbol symbol, IChannel channel)
+        {
+            // We should never be called with an ISymbol that isn't a MagicSymbol,
+            // since this method should only be called by using magicResolver.
+            Debug.Assert(symbol as MagicSymbol != null);
+
+            // Which magic command do we have? Split up until the first space.
+            if (symbol is MagicSymbol magic)
+            {
+                var parts = input.Trim().Split(new[] { ' ' }, 2);
+                var remainingInput = parts.Length > 1 ? parts[1] : "";
+                return magic.Execute(remainingInput, channel);
+            }
+            else
+            {
+                channel.Stderr($"Magic command {symbol?.Name} not recognized.");
                 return ExecuteStatus.Error.ToExecutionResult();
             }
         }
@@ -467,13 +592,17 @@ namespace Microsoft.Jupyter.Core
 
         #region Example Magic Commands
 
-        [MagicCommand("%history")]
+        [MagicCommand("%history",
+            summary: "Displays a list of commands run so far this session."
+        )]
         public ExecutionResult ExecuteHistory(string input, IChannel channel)
         {
             return History.ToExecutionResult();
         }
 
-        [MagicCommand("%version")]
+        [MagicCommand("%version",
+            summary: "Displays the version numbers for various components of this kernel."
+        )]
         public ExecutionResult ExecuteVersion(string input, IChannel channel)
         {
             var versions = new [] {
