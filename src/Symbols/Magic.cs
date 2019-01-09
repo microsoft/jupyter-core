@@ -62,13 +62,19 @@ namespace Microsoft.Jupyter.Core
     ///      A symbol resolver that uses <see cref="MagicCommandAttribute" />
     ///      attributes to find magic commands in a given engine class.
     /// </summary>
-    /// <param name="engine">
-    ///      The execution engine to be searched for magic command methods.
-    /// </param>
     public class MagicCommandResolver : ISymbolResolver
     {
         private IExecutionEngine engine;
         private IDictionary<string, (MagicCommandAttribute, MethodInfo)> methods;
+
+        /// <summary>
+        ///      Constructs a new resolver by searching a given engine for
+        ///      methods annotated with the <see cref="MagicCommandAttribute" />
+        ///      attribute.
+        /// </summary>
+        /// <param name="engine">
+        ///      The execution engine to be searched for magic command methods.
+        /// </param>
         public MagicCommandResolver(IExecutionEngine engine)
         {
             this.engine = engine;
