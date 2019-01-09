@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using Microsoft.Jupyter.Core.Protocol;
+using System.Diagnostics;
 
 namespace Microsoft.Jupyter.Core
 {
@@ -207,7 +208,7 @@ namespace Microsoft.Jupyter.Core
 
         public ISymbol Resolve(string symbolName)
         {
-            foreach (var resolver in resolvers)
+            foreach (var resolver in resolvers.EnumerateInReverse())
             {
                 var resolution = resolver.Resolve(symbolName);
                 if (resolution != null) return resolution;
@@ -555,12 +556,16 @@ namespace Microsoft.Jupyter.Core
 
         public virtual ExecutionResult ExecuteMagic(string input, ISymbol symbol, IChannel channel)
         {
+            // We should never be called with an ISymbol that isn't a MagicSymbol,
+            // since this method should only be called by using magicResolver.
+            Debug.Assert(symbol as MagicSymbol != null);
+
             // Which magic command do we have? Split up until the first space.
             if (symbol is MagicSymbol magic)
             {
                 var parts = input.Trim().Split(new[] { ' ' }, 2);
                 var remainingInput = parts.Length > 1 ? parts[1] : "";
-                return magic.Execute(input, channel);
+                return magic.Execute(remainingInput, channel);
             }
             else
             {

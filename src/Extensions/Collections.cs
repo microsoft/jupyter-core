@@ -54,5 +54,13 @@ namespace Microsoft.Jupyter.Core
             value = entry.Value;
         }
 
+        public static IEnumerable<TSource> EnumerateInReverse<TSource>(this IList<TSource> source)
+        {
+            foreach (var idx in Enumerable.Range(1, source.Count))
+            {
+                yield return source[source.Count - idx];
+            }
+        }
+
     }
 }
