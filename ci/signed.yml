@@ -20,3 +20,4 @@ jobs:
   - template: steps-build-core.yml
   - template: steps-sign.yml
   - task: PublishBuildArtifacts@1
+    condition: succeededOrFailed()

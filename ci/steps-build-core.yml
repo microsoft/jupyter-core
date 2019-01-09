@@ -16,8 +16,12 @@ steps:
     projects: tests/core/core.csproj
 
 - task: DotNetCoreCLI@2
+  displayName: "Packing Core library."
   inputs:
     command: pack
     configuration: $(Build.Configuration)
     projects: src/jupyter-core.csproj
     versioningScheme: $(VersioningScheme)
+    majorVersion: $(Build.Major)
+    minorVersion: $(Build.Minor)
+    patchVersion: $(Build.Patch)

@@ -26,12 +26,16 @@ steps:
 
 
 - task: DotNetCoreCLI@2
+  displayName: "Packing Signed version of Core library."
   inputs:
     command: pack
     configuration: $(Build.Configuration)
     nobuild: true
     projects: src/jupyter-core.csproj
     versioningScheme: $(VersioningScheme)
+    majorVersion: $(Build.Major)
+    minorVersion: $(Build.Minor)
+    patchVersion: $(Build.Patch)
 
 
 - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@1
