@@ -37,16 +37,34 @@ namespace Microsoft.Jupyter.Core
         }
     }
 
+    /// <summary>
+    ///      A symbol representing a magic command.
+    /// </summary>
     public class MagicSymbol : ISymbol
     {
         public string Name { get; set; }
         public SymbolKind Kind { get; set; }
+
+        /// <summary>
+        ///     Documentation about this magic command to be displayed to the user.
+        /// </summary>
         public Documentation Documentation { get; set; }
 
+        /// <summary>
+        ///      A function to be run when the magic command is executed by the
+        ///      user.
+        /// </summary>
         [JsonIgnore]
         public Func<string, IChannel, ExecutionResult> Execute { get; set; }
     }
 
+    /// <summary>
+    ///      A symbol resolver that uses <see cref="MagicCommandAttribute" />
+    ///      attributes to find magic commands in a given engine class.
+    /// </summary>
+    /// <param name="engine">
+    ///      The execution engine to be searched for magic command methods.
+    /// </param>
     public class MagicCommandResolver : ISymbolResolver
     {
         private IExecutionEngine engine;
