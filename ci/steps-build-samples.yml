@@ -1,0 +1,31 @@
+##
+# Runs sanity tests on the core and the sample kernels.
+##
+
+steps:
+- task: CondaEnvironment@1
+  displayName: 'Create conda environment for hosting Jupyter kernels'
+  inputs:
+    environmentName: nb
+    packageSpecs: notebook jupyter_client pytest nose
+
+- script: |
+    pip install jupyter_kernel_test
+    # The version of pyzmq on Anaconda does not seem to work in Windows agents
+    # as of November 2018: https://github.com/zeromq/pyzmq/issues/852
+    pip uninstall -y pyzmq
+    pip install pyzmq
+  displayName: 'Install additional dependencies from pip.'
+
+- script: dotnet run -c $(Build.Configuration) -v n -- install --develop
+  displayName: "Add IEcho kernel to Jupyter."
+  workingDirectory: examples/echo-kernel
+
+- script: dotnet run -c $(Build.Configuration) -v n -- install --develop
+  displayName: "Add IMoon kernel to Jupyter."
+  workingDirectory: examples/moon-kernel
+
+- script: py.test tests/protocol/
+  displayName: "Run Jupyter protocol tests."
+  workingDirectory: .
+
