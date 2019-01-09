@@ -14,92 +14,6 @@ using System.Diagnostics;
 
 namespace Microsoft.Jupyter.Core
 {
-    /// <summary>
-    ///      Marks that a given method implements the given magic command.
-    /// </summary>
-    /// <remarks>
-    ///      Each magic command method must have the signature
-    ///      <c>ExecuteResult (string, IChannel)</c>, similar to
-    ///      <ref>BaseEngine.ExecuteMundane</ref>.
-    /// </remarks>
-    [System.AttributeUsage(System.AttributeTargets.Method)]
-    public class MagicCommandAttribute : System.Attribute
-    {
-        public readonly string Name;
-        public readonly Documentation Documentation;
-
-        public MagicCommandAttribute(
-            string name,
-            string summary,
-            string fullDocumentation = null
-        )
-        {
-            Name = name;
-            Documentation = new Documentation
-            {
-                Full = fullDocumentation,
-                Summary = summary
-            };
-        }
-    }
-
-    public class MagicSymbol : ISymbol
-    {
-        public string Name { get; set; }
-        public SymbolKind Kind { get; set; }
-        public Documentation Documentation { get; set; }
-
-        public Func<string, IChannel, ExecutionResult> Execute { get; set; }
-    }
-
-    public class MagicCommandResolver : ISymbolResolver
-    {
-        private IExecutionEngine engine;
-        private IDictionary<string, (MagicCommandAttribute, MethodInfo)> methods;
-        public MagicCommandResolver(IExecutionEngine engine)
-        {
-            this.engine = engine;
-            methods = engine
-                .GetType()
-                .GetMethods()
-                .Where(
-                    method => method.GetCustomAttributes(typeof(MagicCommandAttribute), inherit: true).Length > 0
-                )
-                .Select(
-                    method => {
-                        var attr = (
-                            (MagicCommandAttribute)
-                            method
-                            .GetCustomAttributes(typeof(MagicCommandAttribute), inherit: true)
-                            .Single()
-                        );
-                        return (attr, method);
-                    }
-                )
-                .ToImmutableDictionary(
-                    pair => pair.attr.Name,
-                    pair => (pair.attr, pair.method)
-                );
-
-        }
-
-        public ISymbol Resolve(string symbolName)
-        {
-            if (this.methods.ContainsKey(symbolName))
-            {
-                (var attr, var method) = this.methods[symbolName];
-                return new MagicSymbol
-                {
-                    Name = attr.Name,
-                    Documentation = attr.Documentation,
-                    Kind = SymbolKind.Magic,
-                    Execute = (input, channel) =>
-                        (ExecutionResult)(method.Invoke(engine, new object[] { input, channel }))
-                };
-            }
-            else return null;
-        }
-    }
 
     /// <summary>
     ///      Abstract class used to provide the basic functionality needed by
@@ -201,13 +115,32 @@ namespace Microsoft.Jupyter.Core
 
         #region Symbol Resolution
 
+        /// <summary>
+        ///      Adds a new symbol resolver to the list of resolvers used by the
+        ///      <see cref="Resolve" /> method.
+        /// </summary>
+        /// <param name="resolver">A symbol resolver to be registered.</param>
         public void RegisterSymbolResolver(ISymbolResolver resolver)
         {
             resolvers.Add(resolver);
         }
 
+        /// <summary>
+        ///      Given the name of a symbol, returns an object representing that
+        ///      symbol using each registered symbol resolver in turn.
+        /// </summary>
+        /// <param name="symbolName">Name of the symbol to be resolved.</param>
+        /// <returns>
+        ///     An <c>ISymbol</c> representing the resolution of the given
+        ///     symbol name, or <c>null</c> if the symbol could not be resolved.
+        /// </returns>
+        /// <remarks>
+        ///     The most recently added symbol resolvers are used first, falling
+        ///     back through to the oldest resolver until a resolution is found.
+        /// </remarks>
         public ISymbol Resolve(string symbolName)
         {
+            if (symbolName == null) { throw new ArgumentNullException(nameof(symbolName)); }
             foreach (var resolver in resolvers.EnumerateInReverse())
             {
                 var resolution = resolver.Resolve(symbolName);
