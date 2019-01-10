@@ -31,7 +31,7 @@ steps:
     command: pack
     configuration: $(Build.Configuration)
     nobuild: true
-    projects: src/jupyter-core.csproj
+    packagesToPack: src/jupyter-core.csproj
     versioningScheme: $(VersioningScheme)
     majorVersion: $(Build.Major)
     minorVersion: $(Build.Minor)

@@ -20,7 +20,7 @@ steps:
   inputs:
     command: pack
     configuration: $(Build.Configuration)
-    projects: src/jupyter-core.csproj
+    packagesToPack: src/jupyter-core.csproj
     versioningScheme: $(VersioningScheme)
     majorVersion: $(Build.Major)
     minorVersion: $(Build.Minor)
