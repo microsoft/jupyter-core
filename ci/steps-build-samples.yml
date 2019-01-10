@@ -10,7 +10,7 @@ steps:
     packageSpecs: python=3.6 notebook jupyter_client pytest nose pip>=18.1
 
 - script: |
-    pip install jupyter_kernel_test
+    pip install --user jupyter_kernel_test
   displayName: 'Install additional dependencies from pip.'
 
 # The version of pyzmq on Anaconda does not seem to work in Windows agents
