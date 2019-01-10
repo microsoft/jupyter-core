@@ -10,14 +10,14 @@ steps:
     packageSpecs: python=3.6 notebook jupyter_client pytest nose pip>=18.1
 
 - script: |
-     . /usr/share/miniconda/etc/profile.d/conda.sh
+     echo ". /usr/share/miniconda/etc/profile.d/conda.sh" >> ~/.bashrc
   condition: eq(variables['Agent.OS'], 'Linux')
-  displayName: 'Enable conda activate.'
+  displayName: 'Enable conda activate (Linux).'
 
 - script: |
-     . /usr/local/miniconda/etc/profile.d/conda.sh
+     echo ". /usr/local/miniconda/etc/profile.d/conda.sh" >> ~/.bash_profile
   condition: eq(variables['Agent.OS'], 'Darwin')
-  displayName: 'Enable conda activate.'
+  displayName: 'Enable conda activate (macOS).'
 
 - script: |
     conda activate core_tests
