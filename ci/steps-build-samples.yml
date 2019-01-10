@@ -10,6 +10,7 @@ steps:
     packageSpecs: notebook jupyter_client pytest nose
 
 - script: |
+    pip install --upgrade pip
     pip install jupyter_kernel_test
   displayName: 'Install additional dependencies from pip.'
 
