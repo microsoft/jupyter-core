@@ -1,0 +1,67 @@
+##
+# Signing dlls & packages.
+##
+steps:
+
+- task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@1
+  displayName: 'Signing: strong name'
+  inputs:
+    ConnectedServiceName: CodeSign
+    FolderPath: src
+    CertificateId: 267
+    OpusName: 'Microsoft Jupyter Core'
+    OpusInfo: 'https://github.com/Microsoft/jupyter-core'
+    SessionTimeout: 120
+
+
+- task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@1
+  displayName: 'Signing: authenticode'
+  inputs:
+    ConnectedServiceName: CodeSign
+    FolderPath: src
+    CertificateId: 400
+    OpusName: 'Microsoft Jupyter Core'
+    OpusInfo: 'https://github.com/Microsoft/jupyter-core'
+    SessionTimeout: 120
+
+
+- task: DotNetCoreCLI@2
+  displayName: "Pack signed version of Core library"
+  inputs:
+    command: pack
+    configuration: $(Build.Configuration)
+    nobuild: true
+    packagesToPack: src/jupyter-core.csproj
+    versioningScheme: $(VersioningScheme)
+    majorVersion: $(Build.Major)
+    minorVersion: $(Build.Minor)
+    patchVersion: $(Build.Patch)
+
+
+- task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@1
+  displayName: 'Signing: Nugets'
+  inputs:
+    ConnectedServiceName: CodeSign
+    FolderPath: '$(Build.ArtifactStagingDirectory)'
+    Pattern: '*.nupkg'
+    signConfigType: inlineSignParams
+    inlineOperation: |
+     [ 
+         {
+             "keyCode": "CP-401405",
+             "operationSetCode": "NuGetSign",
+             "parameters": [ ],
+             "toolName": "sign",
+             "toolVersion": "1.0"
+         },
+         {
+             "keyCode": "CP-401405",
+             "operationSetCode": "NuGetVerify",
+             "parameters": [ ],
+             "toolName": "sign",
+             "toolVersion": "1.0"
+         }
+     ]
+    SessionTimeout: 120
+
+

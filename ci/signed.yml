@@ -1,0 +1,23 @@
+name: $(Build.Major).$(Build.Minor).$(BuildId)
+trigger:
+- master
+resources:
+  repositories:
+  - repository: self
+variables:
+  Build.Major: 1
+  Build.Minor: 0
+  Build.Patch: $(Build.BuildId)
+  Build.Configuration: 'Release'
+  Assembly.Constants: 'SIGNED'
+  VersioningScheme: 'byBuildNumber'
+
+
+jobs:
+- job: Windows
+  pool: 'Hosted VS2017'
+  steps:
+  - template: steps-build-core.yml
+  - template: steps-sign.yml
+  - task: PublishBuildArtifacts@1
+    condition: succeededOrFailed()
