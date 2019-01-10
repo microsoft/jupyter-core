@@ -10,6 +10,7 @@ steps:
     packageSpecs: python=3.6 notebook jupyter_client pytest nose pip>=18.1
 
 - script: |
+     echo $PATH
      which python
   condition: in(variables['Agent.OS'], 'Linux', 'Darwin')
   displayName: 'Check Python path (Linux and macOS).'
