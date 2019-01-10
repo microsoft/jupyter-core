@@ -10,17 +10,11 @@ steps:
     packageSpecs: python=3.6 notebook jupyter_client pytest nose pip>=18.1
 
 - script: |
-     echo ". /usr/share/miniconda/etc/profile.d/conda.sh" >> ~/.bashrc
-  condition: eq(variables['Agent.OS'], 'Linux')
-  displayName: 'Enable conda activate (Linux).'
+     which python
+  condition: in(variables['Agent.OS'], 'Linux', 'Darwin')
+  displayName: 'Check Python path (Linux and macOS).'
 
 - script: |
-     echo ". /usr/local/miniconda/etc/profile.d/conda.sh" >> ~/.bash_profile
-  condition: eq(variables['Agent.OS'], 'Darwin')
-  displayName: 'Enable conda activate (macOS).'
-
-- script: |
-    conda activate core_tests
     conda info
     pip install jupyter_kernel_test
   displayName: 'Install additional dependencies from pip'
