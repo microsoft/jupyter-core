@@ -26,7 +26,7 @@ steps:
 
 
 - task: DotNetCoreCLI@2
-  displayName: "Packing Signed version of Core library."
+  displayName: "Packing signed version of Core library"
   inputs:
     command: pack
     configuration: $(Build.Configuration)

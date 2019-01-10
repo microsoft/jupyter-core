@@ -6,13 +6,14 @@ steps:
 - task: CondaEnvironment@1
   displayName: 'Create conda environment for hosting Jupyter kernels'
   inputs:
-    environmentName: nb
+    environmentName: core_tests
     packageSpecs: python=3.6 notebook jupyter_client pytest nose pip>=18.1
 
 - script: |
     conda info
+    conda activate core_tests
     pip install jupyter_kernel_test
-  displayName: 'Install additional dependencies from pip.'
+  displayName: 'Install additional dependencies from pip'
 
 # The version of pyzmq on Anaconda does not seem to work in Windows agents
 # as of November 2018: https://github.com/zeromq/pyzmq/issues/852

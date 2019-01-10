@@ -9,14 +9,14 @@ steps:
     version: 2.1.300
 
 - task: DotNetCoreCLI@2
-  displayName: "Build and run unit tests on Core library."
+  displayName: "Build and run unit tests on Core library"
   inputs:
     command: test
     arguments: '-c $(Build.Configuration) -v n  /p:DefineConstants=$(Assembly.Constants)'
     projects: tests/core/core.csproj
 
 - task: DotNetCoreCLI@2
-  displayName: "Packing Core library."
+  displayName: "Pack Core library"
   inputs:
     command: pack
     configuration: $(Build.Configuration)
