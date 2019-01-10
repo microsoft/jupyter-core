@@ -10,6 +10,16 @@ steps:
     packageSpecs: python=3.6 notebook jupyter_client pytest nose pip>=18.1
 
 - script: |
+     . /usr/share/miniconda/etc/profile.d/conda.sh
+  condition: eq(variables['Agent.OS'], 'Linux')
+  displayName: 'Enable conda activate.'
+
+- script: |
+     . /usr/local/miniconda/etc/profile.d/conda.sh
+  condition: eq(variables['Agent.OS'], 'Darwin')
+  displayName: 'Enable conda activate.'
+
+- script: |
     conda activate core_tests
     conda info
     pip install jupyter_kernel_test
