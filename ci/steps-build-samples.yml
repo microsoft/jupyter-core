@@ -7,10 +7,9 @@ steps:
   displayName: 'Create conda environment for hosting Jupyter kernels'
   inputs:
     environmentName: nb
-    packageSpecs: notebook jupyter_client pytest nose
+    packageSpecs: python=3.6 notebook jupyter_client pytest nose pip>=18.1
 
 - script: |
-    pip install --upgrade pip
     pip install jupyter_kernel_test
   displayName: 'Install additional dependencies from pip.'
 
