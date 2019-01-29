@@ -12,7 +12,6 @@ variables:
   Assembly.Constants: 'SIGNED'
   VersioningScheme: 'byBuildNumber'
 
-
 jobs:
 - job: Windows
   pool: 'Hosted VS2017'
