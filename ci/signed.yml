@@ -11,6 +11,7 @@ variables:
   Build.Configuration: 'Release'
   Assembly.Constants: 'SIGNED'
   VersioningScheme: 'byBuildNumber'
+  DllsToScan: 'signing\*.dll'
 
 jobs:
 - job: Windows
