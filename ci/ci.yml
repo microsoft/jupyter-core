@@ -18,7 +18,6 @@ jobs:
   steps:
   - template: steps-build-core.yml
   - template: steps-build-samples.yml
-  - template: steps-sdl-tools.yml
   - task: PublishBuildArtifacts@1
     condition: succeededOrFailed()
 
