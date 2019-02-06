@@ -11,7 +11,7 @@ variables:
   Build.Configuration: 'Release'
   Assembly.Constants: 'SIGNED'
   VersioningScheme: 'byBuildNumber'
-
+  DllsToScan: 'src\bin\Release\*\*.dll'
 
 jobs:
 - job: Windows
@@ -19,5 +19,6 @@ jobs:
   steps:
   - template: steps-build-core.yml
   - template: steps-sign.yml
+  - template: steps-sdl-tools.yml
   - task: PublishBuildArtifacts@1
     condition: succeededOrFailed()
