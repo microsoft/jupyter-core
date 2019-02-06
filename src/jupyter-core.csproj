@@ -26,6 +26,7 @@
 
     <PackageReference Include="System.Net.Security" Version="4.3.1" />
     <PackageReference Include="System.Net.WebSockets.Client" Version="4.3.1" />
+    <PackageReference Include="System.ServiceModel.Primitives" Version="4.5.3" />
   </ItemGroup>
 
 </Project>
