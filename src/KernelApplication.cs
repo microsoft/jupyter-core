@@ -108,6 +108,11 @@ namespace Microsoft.Jupyter.Core
                         "Level of logging messages to emit to the console. On development mode, defaults to Information.",
                         CommandOptionType.SingleValue
                     );
+                    var prefixOpt = cmd.Option<string>(
+                        "--prefix <PREFIX>",
+                        "Prefix to use when installing the kernel into Jupyter. See `jupyter kernelspec install --help` for details.",
+                        CommandOptionType.SingleValue
+                    );
                     cmd.OnExecute(() =>
                     {
                         var develop = developOpt.HasValue();
@@ -115,7 +120,8 @@ namespace Microsoft.Jupyter.Core
                             logLevelOpt.HasValue()
                             ? logLevelOpt.ParsedValue
                             : (develop ? LogLevel.Information : LogLevel.Error);
-                        return ReturnExitCode(() => InstallKernelSpec(develop, logLevel));
+                        var prefix = prefixOpt.HasValue() ? prefixOpt.Value() : null;
+                        return ReturnExitCode(() => InstallKernelSpec(develop, logLevel, prefix));
                     });
                 }
             );
@@ -196,13 +202,19 @@ namespace Microsoft.Jupyter.Core
         ///      The default logging level to be used when starting new kernel
         ///      instances.
         /// </param>
+        /// <param name="prefix">
+        ///      A path to be provided to <c>jupyter kernelspec install</c>
+        ///      as the prefix into which the kernel should be installed.
+        ///      Typically, this parameter is used when installing into an environment.
+        ///      If <c>null</c>, no prefix is passed to Jupyter.
+        /// </param>
         /// <remarks>
         ///      This method dynamically generates a new <c>kernelspec.json</c>
         ///      file representing the kernel properties provided when the
         ///      application was constructed, along with options such as the
         ///      development mode.
         /// </remarks>
-        public int InstallKernelSpec(bool develop, LogLevel logLevel)
+        public int InstallKernelSpec(bool develop, LogLevel logLevel, string prefix = null)
         {
             var kernelSpecDir = "";
             KernelSpec kernelSpec;
@@ -252,10 +264,13 @@ namespace Microsoft.Jupyter.Core
             File.WriteAllText(jsonPath, JsonConvert.SerializeObject(kernelSpec));
             kernelSpecDir = tempKernelSpecDir;
 
+            // Find out if we need any extra arguments.
+            var extraArgs = prefix == null ? null : $"--prefix=\"{prefix}\"";
+
             var process = Process.Start(new ProcessStartInfo
             {
                 FileName = "jupyter",
-                Arguments = $"kernelspec install {kernelSpecDir} --name=\"{properties.KernelName}\""
+                Arguments = $"kernelspec install {kernelSpecDir} --name=\"{properties.KernelName}\" {extraArgs}"
             });
             process.WaitForExit();
             File.Delete(jsonPath);
