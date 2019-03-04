@@ -26,7 +26,15 @@ namespace Microsoft.Jupyter.Core
                 Init
             );
 
-            return app.WithDefaultCommands().Execute(args);
+            return app
+                .WithDefaultCommands()
+                .WithKernelSpecResources<Program>(
+                    new Dictionary<string, string>
+                    {
+                        ["logo-64x64.png"] = "echo-kernel.res.logo-64x64.png"
+                    }
+                )
+                .Execute(args);
         }
     }
 }

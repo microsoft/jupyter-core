@@ -10,6 +10,8 @@ using McMaster.Extensions.CommandLineUtils;
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
+using System.Reflection;
+using System.Linq;
 
 namespace Microsoft.Jupyter.Core
 {
@@ -20,6 +22,7 @@ namespace Microsoft.Jupyter.Core
     public class KernelApplication : CommandLineApplication
     {
         private readonly KernelProperties properties;
+        private readonly IDictionary<string, Func<Stream>> additionalFiles = new Dictionary<string, Func<Stream>>();
 
         private readonly Action<ServiceCollection> configure;
 
@@ -82,6 +85,35 @@ namespace Microsoft.Jupyter.Core
             .AddInstallCommand()
             .AddKernelCommand();
 
+        public KernelApplication WithKernelSpecResources<TProgram>(IDictionary<string, string> resources)
+        {
+            var assembly = typeof(TProgram).Assembly;
+            var newFiles = resources
+                .ToDictionary<KeyValuePair<string, string>, string, Func<Stream>>(
+                    resource => resource.Key,
+                    resource => (() => {
+                        var stream = assembly.GetManifestResourceStream(resource.Value);
+                        if (stream == null) {
+                            System.Console.WriteLine(assembly.GetName());
+                            var resourceNames = assembly.GetManifestResourceNames();
+                            foreach(string resourceName in resourceNames)
+                            {
+                                System.Console.WriteLine(resourceName);
+                            }
+                            throw new IOException($"Kernelspec resource {resource.Key} not found at {resource.Value}.");
+                        }
+                        return stream;
+                    })
+                );
+
+            foreach (var (name, streamFunc) in newFiles)
+            {
+                additionalFiles[name] = streamFunc;
+            }
+
+            return this;
+        }
+
         /// <summary>
         ///     Adds a command to allow users to install this kernel into
         ///     Jupyter's list of available kernels.
@@ -103,6 +135,11 @@ namespace Microsoft.Jupyter.Core
                         "Installs a kernel spec that runs against this working directory. Useful for development only.",
                         CommandOptionType.NoValue
                     );
+                    var userOpt = cmd.Option(
+                        "--user",
+                        "Installs the kernel for the current user only.",
+                        CommandOptionType.NoValue
+                    );
                     var logLevelOpt = cmd.Option<LogLevel>(
                         "-l|--log-level <LEVEL>",
                         "Level of logging messages to emit to the console. On development mode, defaults to Information.",
@@ -121,7 +158,7 @@ namespace Microsoft.Jupyter.Core
                             ? logLevelOpt.ParsedValue
                             : (develop ? LogLevel.Information : LogLevel.Error);
                         var prefix = prefixOpt.HasValue() ? prefixOpt.Value() : null;
-                        return ReturnExitCode(() => InstallKernelSpec(develop, logLevel, prefix));
+                        return ReturnExitCode(() => InstallKernelSpec(develop, logLevel, prefix, userOpt.HasValue(), additionalFiles));
                     });
                 }
             );
@@ -208,13 +245,25 @@ namespace Microsoft.Jupyter.Core
         ///      Typically, this parameter is used when installing into an environment.
         ///      If <c>null</c>, no prefix is passed to Jupyter.
         /// </param>
+        /// <param name="user">
+        ///      If <c>true</c>, the kernel will be installed for the current
+        ///      user only.
+        /// </param>
+        /// <param name="additionalFiles">
+        ///      Specifies additional files which should be included in the kernelspec
+        ///      directory. Files are specified as a dictionary from file names
+        ///      to functions yielding streams that read the contents of each
+        ///      file.
+        /// </param>
         /// <remarks>
         ///      This method dynamically generates a new <c>kernelspec.json</c>
         ///      file representing the kernel properties provided when the
         ///      application was constructed, along with options such as the
         ///      development mode.
         /// </remarks>
-        public int InstallKernelSpec(bool develop, LogLevel logLevel, string prefix = null)
+        public int InstallKernelSpec(bool develop,
+                                     LogLevel logLevel, string prefix = null, bool user = false,
+                                     IDictionary<string, Func<Stream>> additionalFiles = null)
         {
             var kernelSpecDir = "";
             KernelSpec kernelSpec;
@@ -259,21 +308,43 @@ namespace Microsoft.Jupyter.Core
 
             // Make a temporary directory to hold the kernel spec.
             var tempKernelSpecDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+            var filesToDelete = new List<string>();
             var jsonPath = Path.Combine(tempKernelSpecDir, "kernel.json");
             Directory.CreateDirectory(tempKernelSpecDir);
             File.WriteAllText(jsonPath, JsonConvert.SerializeObject(kernelSpec));
+            filesToDelete.Add(jsonPath);
             kernelSpecDir = tempKernelSpecDir;
 
+            // Add any additional files we may need.
+            if (additionalFiles != null) {
+                foreach (var (fileName, streamAction) in additionalFiles)
+                {
+                    var dest = Path.Combine(tempKernelSpecDir, fileName);
+                    var sourceStream = streamAction();
+                    using (var destStream = File.OpenWrite(dest))
+                    {
+                        sourceStream.CopyTo(destStream);
+                    }
+                    filesToDelete.Add(dest);
+                }
+            }
+
             // Find out if we need any extra arguments.
-            var extraArgs = prefix == null ? null : $"--prefix=\"{prefix}\"";
+            var extraArgs = new List<string>();
+            if (prefix != null) {extraArgs.Add($"--prefix=\"{prefix}\"");}
+            if (user) {extraArgs.Add("--user");}
+
 
             var process = Process.Start(new ProcessStartInfo
             {
                 FileName = "jupyter",
-                Arguments = $"kernelspec install {kernelSpecDir} --name=\"{properties.KernelName}\" {extraArgs}"
+                Arguments = $"kernelspec install {kernelSpecDir} --name=\"{properties.KernelName}\" {String.Join(" ", extraArgs)}"
             });
             process.WaitForExit();
-            File.Delete(jsonPath);
+            foreach (var fileName in filesToDelete)
+            {
+                File.Delete(fileName);
+            }
             Directory.Delete(tempKernelSpecDir);
             return process.ExitCode;
         }
