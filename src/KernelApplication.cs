@@ -85,30 +85,28 @@ namespace Microsoft.Jupyter.Core
             .AddInstallCommand()
             .AddKernelCommand();
 
+        /// <summary>
+        ///     Adds the given resources files as additional kernelspec files.
+        /// </summary>
+        /// <param name="resources">
+        ///      A dictionary from kernelspec file names to the embedded resource
+        ///      paths which should be copied to each kernelspec file.
+        /// </param>
+        /// <typeparam>
+        ///      A type in the assembly that should be used to look up resource
+        ///      files. Typically, this will be the main static program class
+        ///      used to run each kernel.
+        /// </typeparam>
         public KernelApplication WithKernelSpecResources<TProgram>(IDictionary<string, string> resources)
         {
             var assembly = typeof(TProgram).Assembly;
-            var newFiles = resources
-                .ToDictionary<KeyValuePair<string, string>, string, Func<Stream>>(
-                    resource => resource.Key,
-                    resource => (() => {
-                        var stream = assembly.GetManifestResourceStream(resource.Value);
-                        if (stream == null) {
-                            System.Console.WriteLine(assembly.GetName());
-                            var resourceNames = assembly.GetManifestResourceNames();
-                            foreach(string resourceName in resourceNames)
-                            {
-                                System.Console.WriteLine(resourceName);
-                            }
-                            throw new IOException($"Kernelspec resource {resource.Key} not found at {resource.Value}.");
-                        }
-                        return stream;
-                    })
-                );
-
-            foreach (var (name, streamFunc) in newFiles)
+            foreach (var (name, resourcePath) in resources)
             {
-                additionalFiles[name] = streamFunc;
+                if (assembly.GetManifestResourceInfo(resourcePath) == null) {
+                    throw new IOException($"Kernelspec resource {name} not found at {resourcePath}.");
+                }
+
+                additionalFiles[name] = () => assembly.GetManifestResourceStream(resourcePath);
             }
 
             return this;
