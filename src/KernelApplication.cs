@@ -23,6 +23,7 @@ namespace Microsoft.Jupyter.Core
     {
         private readonly KernelProperties properties;
         private readonly IDictionary<string, Func<Stream>> additionalFiles = new Dictionary<string, Func<Stream>>();
+        private IEnumerable<string> additionalKernelArguments = new List<string>();
 
         private readonly Action<ServiceCollection> configure;
 
@@ -113,6 +114,17 @@ namespace Microsoft.Jupyter.Core
         }
 
         /// <summary>
+        ///      Adds arguments that should be passed to the kernel when invoked
+        ///      by jupyter. These arguments will be written to the kernelspec
+        ///      for the kernel.
+        /// </summary>
+        public KernelApplication WithKernelArguments(params string[] arguments)
+        {
+            this.additionalKernelArguments = arguments;
+            return this;
+        }
+
+        /// <summary>
         ///     Adds a command to allow users to install this kernel into
         ///     Jupyter's list of available kernels.
         /// </summary>
@@ -156,7 +168,13 @@ namespace Microsoft.Jupyter.Core
                             ? logLevelOpt.ParsedValue
                             : (develop ? LogLevel.Information : LogLevel.Error);
                         var prefix = prefixOpt.HasValue() ? prefixOpt.Value() : null;
-                        return ReturnExitCode(() => InstallKernelSpec(develop, logLevel, prefix, userOpt.HasValue(), additionalFiles));
+                        return ReturnExitCode(() => InstallKernelSpec(
+                            develop, logLevel,
+                            prefix: prefix,
+                            user: userOpt.HasValue(),
+                            additionalFiles: additionalFiles,
+                            additionalKernelArguments: additionalKernelArguments
+                        ));
                     });
                 }
             );
@@ -260,8 +278,10 @@ namespace Microsoft.Jupyter.Core
         ///      development mode.
         /// </remarks>
         public int InstallKernelSpec(bool develop,
-                                     LogLevel logLevel, string prefix = null, bool user = false,
-                                     IDictionary<string, Func<Stream>> additionalFiles = null)
+                                     LogLevel logLevel,
+                                     string prefix = null, bool user = false,
+                                     IDictionary<string, Func<Stream>> additionalFiles = null,
+                                     IEnumerable<string> additionalKernelArguments = null)
         {
             var kernelSpecDir = "";
             KernelSpec kernelSpec;
@@ -304,6 +324,12 @@ namespace Microsoft.Jupyter.Core
                 };
             }
 
+            // Add any additional arguments to the kernel spec as needed.
+            if (additionalKernelArguments != null)
+            {
+                kernelSpec.Arguments.AddRange(additionalKernelArguments);
+            }
+
             // Make a temporary directory to hold the kernel spec.
             var tempKernelSpecDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
             var filesToDelete = new List<string>();
@@ -329,9 +355,8 @@ namespace Microsoft.Jupyter.Core
 
             // Find out if we need any extra arguments.
             var extraArgs = new List<string>();
-            if (prefix != null) {extraArgs.Add($"--prefix=\"{prefix}\"");}
-            if (user) {extraArgs.Add("--user");}
-
+            if (!String.IsNullOrWhiteSpace(prefix)) { extraArgs.Add($"--prefix=\"{prefix}\""); }
+            if (user) { extraArgs.Add("--user"); }
 
             var process = Process.Start(new ProcessStartInfo
             {
