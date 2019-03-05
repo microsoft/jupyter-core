@@ -10,6 +10,7 @@ using Newtonsoft.Json;
 using System.Collections.Generic;
 using static Microsoft.Jupyter.Core.Constants;
 using Microsoft.Extensions.DependencyInjection;
+using McMaster.Extensions.CommandLineUtils;
 
 namespace Microsoft.Jupyter.Core
 {
@@ -20,14 +21,37 @@ namespace Microsoft.Jupyter.Core
                 // Start a new service for the ReplEngine.
                 .AddSingleton<IExecutionEngine, EchoEngine>();
 
+        internal static CommandOption ShoutOption;
+
         public static int Main(string[] args) {
             var app = new KernelApplication(
                 PROPERTIES,
                 Init
             );
+            CommandOption shoutInstallOption = null;
 
             return app
-                .WithDefaultCommands()
+                .AddInstallCommand(
+                    installCmd => {
+                        shoutInstallOption = installCmd.Option(
+                            "--shout",
+                            "Shout back when echoing input.",
+                            CommandOptionType.NoValue
+                        );
+                    }
+                )
+                .AddKernelCommand(
+                    kernelCmd => {
+                        ShoutOption = kernelCmd.Option(
+                            "--shout",
+                            "Shout back when echoing input.",
+                            CommandOptionType.NoValue
+                        );
+                    }
+                )
+                .WithKernelArguments(
+                    () => shoutInstallOption.HasValue() ? new[] {"--shout"} : new string[] {}
+                )
                 .WithKernelSpecResources<Program>(
                     new Dictionary<string, string>
                     {

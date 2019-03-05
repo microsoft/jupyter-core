@@ -23,7 +23,8 @@ namespace Microsoft.Jupyter.Core
     {
         private readonly KernelProperties properties;
         private readonly IDictionary<string, Func<Stream>> additionalFiles = new Dictionary<string, Func<Stream>>();
-        private IEnumerable<string> additionalKernelArguments = new List<string>();
+        private IList<Func<IEnumerable<string>>> additionalKernelArgumentSources
+            = new List<Func<IEnumerable<string>>>();
 
         private readonly Action<ServiceCollection> configure;
 
@@ -115,12 +116,12 @@ namespace Microsoft.Jupyter.Core
 
         /// <summary>
         ///      Adds arguments that should be passed to the kernel when invoked
-        ///      by jupyter. These arguments will be written to the kernelspec
+        ///      by jupyter. These arguments will be written to` the kernelspec
         ///      for the kernel.
         /// </summary>
-        public KernelApplication WithKernelArguments(params string[] arguments)
+        public KernelApplication WithKernelArguments(Func<IEnumerable<string>> arguments)
         {
-            this.additionalKernelArguments = arguments;
+            this.additionalKernelArgumentSources.Add(arguments);
             return this;
         }
 
@@ -132,9 +133,9 @@ namespace Microsoft.Jupyter.Core
         ///     This command assumes that the command <c>jupyter</c> is on the
         ///     user's <c>PATH</c>.
         /// </remarks>
-        public KernelApplication AddInstallCommand()
+        public KernelApplication AddInstallCommand(Action<CommandLineApplication> configure = null)
         {
-            this.Command(
+            var installCmd = this.Command(
                 "install",
                 cmd =>
                 {
@@ -173,11 +174,14 @@ namespace Microsoft.Jupyter.Core
                             prefix: prefix,
                             user: userOpt.HasValue(),
                             additionalFiles: additionalFiles,
-                            additionalKernelArguments: additionalKernelArguments
+                            additionalKernelArguments:
+                                additionalKernelArgumentSources
+                                .SelectMany(source => source())
                         ));
                     });
                 }
             );
+            if (configure != null) { configure(installCmd); }
 
             return this;
         }
@@ -190,9 +194,9 @@ namespace Microsoft.Jupyter.Core
         ///     This command is typically not run by end users directly, but
         ///     by Jupyter on the user's behalf.
         /// </remarks>
-        public KernelApplication AddKernelCommand()
+        public KernelApplication AddKernelCommand(Action<CommandLineApplication> configure = null)
         {
-            this.Command(
+            var kernelCmd = this.Command(
                 "kernel",
                 cmd =>
                 {
@@ -218,6 +222,7 @@ namespace Microsoft.Jupyter.Core
                     });
                 }
             );
+            if (configure != null) { configure(kernelCmd); }
 
             return this;
         }
