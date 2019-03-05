@@ -366,7 +366,11 @@ namespace Microsoft.Jupyter.Core
             process.WaitForExit();
             foreach (var fileName in filesToDelete)
             {
-                File.Delete(fileName);
+                try
+                {
+                    File.Delete(fileName);
+                }
+                catch {}
             }
             Directory.Delete(tempKernelSpecDir);
             return process.ExitCode;
