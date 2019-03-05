@@ -161,6 +161,12 @@ namespace Microsoft.Jupyter.Core
                         "Prefix to use when installing the kernel into Jupyter. See `jupyter kernelspec install --help` for details.",
                         CommandOptionType.SingleValue
                     );
+                    var toolPathOpt = cmd.Option<string>(
+                        "--path-to-tool <PATH>",
+                        "Specified an explicit path to the kernel tool being installed, rather than using the .NET command. " +
+                        "This option is incompatible with --develop, and isn't typically needed except in CI builds or other automated environments.",
+                        CommandOptionType.SingleValue
+                    );
                     cmd.OnExecute(() =>
                     {
                         var develop = developOpt.HasValue();
@@ -176,7 +182,11 @@ namespace Microsoft.Jupyter.Core
                             additionalFiles: additionalFiles,
                             additionalKernelArguments:
                                 additionalKernelArgumentSources
-                                .SelectMany(source => source())
+                                .SelectMany(source => source()),
+                            pathToTool:
+                                toolPathOpt.HasValue()
+                                ? toolPathOpt.ParsedValue
+                                : null
                         ));
                     });
                 }
@@ -276,6 +286,15 @@ namespace Microsoft.Jupyter.Core
         ///      to functions yielding streams that read the contents of each
         ///      file.
         /// </param>
+        /// <param name="pathToTool">
+        ///      If present, the value of this parameter will be used in the
+        ///      kernelspec as an explicit path to the kernel being invoked,
+        ///      as opposed to using the dotnet command-line program to find
+        ///      the appropriate kernel.
+        ///      This is not needed in most circumstances, but can be helpful
+        ///      when working with CI environments that do not add .NET Global
+        ///      Tools to the PATH environment variable.
+        /// </param>
         /// <remarks>
         ///      This method dynamically generates a new <c>kernelspec.json</c>
         ///      file representing the kernel properties provided when the
@@ -286,12 +305,17 @@ namespace Microsoft.Jupyter.Core
                                      LogLevel logLevel,
                                      string prefix = null, bool user = false,
                                      IDictionary<string, Func<Stream>> additionalFiles = null,
-                                     IEnumerable<string> additionalKernelArguments = null)
+                                     IEnumerable<string> additionalKernelArguments = null,
+                                     string pathToTool = null)
         {
             var kernelSpecDir = "";
             KernelSpec kernelSpec;
             if (develop)
             {
+                if (pathToTool != null)
+                {
+                    throw new InvalidDataException("Cannot use development mode together with custom tool paths.");
+                }
                 System.Console.WriteLine(
                     "NOTE: Installing a kernel spec which references this directory.\n" +
                     $"      Any changes made in this directory will affect the operation of the {properties.FriendlyName} kernel.\n" +
@@ -315,17 +339,30 @@ namespace Microsoft.Jupyter.Core
             }
             else
             {
-                kernelSpec = new KernelSpec
+                var kernelArgs = new List<string>();
+                if (pathToTool != null)
                 {
-                    DisplayName = properties.DisplayName,
-                    LanguageName = properties.LanguageName,
-                    Arguments = new List<string>
+                    kernelArgs.Add(pathToTool);
+                }
+                else
+                {
+                    kernelArgs.AddRange(new[] {"dotnet", properties.KernelName});
+                }
+
+                kernelArgs.AddRange(
+                    new[]
                     {
-                        "dotnet", properties.KernelName,
                         "kernel",
                         "--log-level", logLevel.ToString(),
                         "{connection_file}"
                     }
+                );
+
+                kernelSpec = new KernelSpec
+                {
+                    DisplayName = properties.DisplayName,
+                    LanguageName = properties.LanguageName,
+                    Arguments = kernelArgs
                 };
             }
 
