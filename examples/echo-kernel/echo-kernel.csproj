@@ -29,4 +29,8 @@
     <ProjectReference Include="../../src/jupyter-core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="res/logo-64x64.png" />
+  </ItemGroup>
+
 </Project>

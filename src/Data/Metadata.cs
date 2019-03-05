@@ -7,6 +7,9 @@ using System.Collections.Generic;
 using System.Net;
 using System.Runtime.Serialization;
 using Microsoft.Jupyter.Core.Protocol;
+using System.IO;
+using System.Linq;
+using System.Reflection;
 
 namespace Microsoft.Jupyter.Core
 {
@@ -143,6 +146,7 @@ namespace Microsoft.Jupyter.Core
                 HelpLinks = HelpLinks
             };
         }
+
     }
 
     [JsonObject(MemberSerialization.OptIn)]

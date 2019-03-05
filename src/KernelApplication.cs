@@ -10,6 +10,8 @@ using McMaster.Extensions.CommandLineUtils;
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
+using System.Reflection;
+using System.Linq;
 
 namespace Microsoft.Jupyter.Core
 {
@@ -20,6 +22,9 @@ namespace Microsoft.Jupyter.Core
     public class KernelApplication : CommandLineApplication
     {
         private readonly KernelProperties properties;
+        private readonly IDictionary<string, Func<Stream>> additionalFiles = new Dictionary<string, Func<Stream>>();
+        private IList<Func<IEnumerable<string>>> additionalKernelArgumentSources
+            = new List<Func<IEnumerable<string>>>();
 
         private readonly Action<ServiceCollection> configure;
 
@@ -83,6 +88,44 @@ namespace Microsoft.Jupyter.Core
             .AddKernelCommand();
 
         /// <summary>
+        ///     Adds the given resources files as additional kernelspec files.
+        /// </summary>
+        /// <param name="resources">
+        ///      A dictionary from kernelspec file names to the embedded resource
+        ///      paths which should be copied to each kernelspec file.
+        /// </param>
+        /// <typeparam>
+        ///      A type in the assembly that should be used to look up resource
+        ///      files. Typically, this will be the main static program class
+        ///      used to run each kernel.
+        /// </typeparam>
+        public KernelApplication WithKernelSpecResources<TProgram>(IDictionary<string, string> resources)
+        {
+            var assembly = typeof(TProgram).Assembly;
+            foreach (var (name, resourcePath) in resources)
+            {
+                if (assembly.GetManifestResourceInfo(resourcePath) == null) {
+                    throw new IOException($"Kernelspec resource {name} not found at {resourcePath}.");
+                }
+
+                additionalFiles[name] = () => assembly.GetManifestResourceStream(resourcePath);
+            }
+
+            return this;
+        }
+
+        /// <summary>
+        ///      Adds arguments that should be passed to the kernel when invoked
+        ///      by jupyter. These arguments will be written to` the kernelspec
+        ///      for the kernel.
+        /// </summary>
+        public KernelApplication WithKernelArguments(Func<IEnumerable<string>> arguments)
+        {
+            this.additionalKernelArgumentSources.Add(arguments);
+            return this;
+        }
+
+        /// <summary>
         ///     Adds a command to allow users to install this kernel into
         ///     Jupyter's list of available kernels.
         /// </summary>
@@ -90,9 +133,9 @@ namespace Microsoft.Jupyter.Core
         ///     This command assumes that the command <c>jupyter</c> is on the
         ///     user's <c>PATH</c>.
         /// </remarks>
-        public KernelApplication AddInstallCommand()
+        public KernelApplication AddInstallCommand(Action<CommandLineApplication> configure = null)
         {
-            this.Command(
+            var installCmd = this.Command(
                 "install",
                 cmd =>
                 {
@@ -101,6 +144,11 @@ namespace Microsoft.Jupyter.Core
                     var developOpt = cmd.Option(
                         "--develop",
                         "Installs a kernel spec that runs against this working directory. Useful for development only.",
+                        CommandOptionType.NoValue
+                    );
+                    var userOpt = cmd.Option(
+                        "--user",
+                        "Installs the kernel for the current user only.",
                         CommandOptionType.NoValue
                     );
                     var logLevelOpt = cmd.Option<LogLevel>(
@@ -113,6 +161,12 @@ namespace Microsoft.Jupyter.Core
                         "Prefix to use when installing the kernel into Jupyter. See `jupyter kernelspec install --help` for details.",
                         CommandOptionType.SingleValue
                     );
+                    var toolPathOpt = cmd.Option<string>(
+                        "--path-to-tool <PATH>",
+                        "Specified an explicit path to the kernel tool being installed, rather than using the .NET command. " +
+                        "This option is incompatible with --develop, and isn't typically needed except in CI builds or other automated environments.",
+                        CommandOptionType.SingleValue
+                    );
                     cmd.OnExecute(() =>
                     {
                         var develop = developOpt.HasValue();
@@ -121,10 +175,23 @@ namespace Microsoft.Jupyter.Core
                             ? logLevelOpt.ParsedValue
                             : (develop ? LogLevel.Information : LogLevel.Error);
                         var prefix = prefixOpt.HasValue() ? prefixOpt.Value() : null;
-                        return ReturnExitCode(() => InstallKernelSpec(develop, logLevel, prefix));
+                        return ReturnExitCode(() => InstallKernelSpec(
+                            develop, logLevel,
+                            prefix: prefix,
+                            user: userOpt.HasValue(),
+                            additionalFiles: additionalFiles,
+                            additionalKernelArguments:
+                                additionalKernelArgumentSources
+                                .SelectMany(source => source()),
+                            pathToTool:
+                                toolPathOpt.HasValue()
+                                ? toolPathOpt.ParsedValue
+                                : null
+                        ));
                     });
                 }
             );
+            if (configure != null) { configure(installCmd); }
 
             return this;
         }
@@ -137,9 +204,9 @@ namespace Microsoft.Jupyter.Core
         ///     This command is typically not run by end users directly, but
         ///     by Jupyter on the user's behalf.
         /// </remarks>
-        public KernelApplication AddKernelCommand()
+        public KernelApplication AddKernelCommand(Action<CommandLineApplication> configure = null)
         {
-            this.Command(
+            var kernelCmd = this.Command(
                 "kernel",
                 cmd =>
                 {
@@ -165,6 +232,7 @@ namespace Microsoft.Jupyter.Core
                     });
                 }
             );
+            if (configure != null) { configure(kernelCmd); }
 
             return this;
         }
@@ -208,18 +276,46 @@ namespace Microsoft.Jupyter.Core
         ///      Typically, this parameter is used when installing into an environment.
         ///      If <c>null</c>, no prefix is passed to Jupyter.
         /// </param>
+        /// <param name="user">
+        ///      If <c>true</c>, the kernel will be installed for the current
+        ///      user only.
+        /// </param>
+        /// <param name="additionalFiles">
+        ///      Specifies additional files which should be included in the kernelspec
+        ///      directory. Files are specified as a dictionary from file names
+        ///      to functions yielding streams that read the contents of each
+        ///      file.
+        /// </param>
+        /// <param name="pathToTool">
+        ///      If present, the value of this parameter will be used in the
+        ///      kernelspec as an explicit path to the kernel being invoked,
+        ///      as opposed to using the dotnet command-line program to find
+        ///      the appropriate kernel.
+        ///      This is not needed in most circumstances, but can be helpful
+        ///      when working with CI environments that do not add .NET Global
+        ///      Tools to the PATH environment variable.
+        /// </param>
         /// <remarks>
         ///      This method dynamically generates a new <c>kernelspec.json</c>
         ///      file representing the kernel properties provided when the
         ///      application was constructed, along with options such as the
         ///      development mode.
         /// </remarks>
-        public int InstallKernelSpec(bool develop, LogLevel logLevel, string prefix = null)
+        public int InstallKernelSpec(bool develop,
+                                     LogLevel logLevel,
+                                     string prefix = null, bool user = false,
+                                     IDictionary<string, Func<Stream>> additionalFiles = null,
+                                     IEnumerable<string> additionalKernelArguments = null,
+                                     string pathToTool = null)
         {
             var kernelSpecDir = "";
             KernelSpec kernelSpec;
             if (develop)
             {
+                if (pathToTool != null)
+                {
+                    throw new InvalidDataException("Cannot use development mode together with custom tool paths.");
+                }
                 System.Console.WriteLine(
                     "NOTE: Installing a kernel spec which references this directory.\n" +
                     $"      Any changes made in this directory will affect the operation of the {properties.FriendlyName} kernel.\n" +
@@ -243,37 +339,81 @@ namespace Microsoft.Jupyter.Core
             }
             else
             {
-                kernelSpec = new KernelSpec
+                var kernelArgs = new List<string>();
+                if (pathToTool != null)
                 {
-                    DisplayName = properties.DisplayName,
-                    LanguageName = properties.LanguageName,
-                    Arguments = new List<string>
+                    kernelArgs.Add(pathToTool);
+                }
+                else
+                {
+                    kernelArgs.AddRange(new[] {"dotnet", properties.KernelName});
+                }
+
+                kernelArgs.AddRange(
+                    new[]
                     {
-                        "dotnet", properties.KernelName,
                         "kernel",
                         "--log-level", logLevel.ToString(),
                         "{connection_file}"
                     }
+                );
+
+                kernelSpec = new KernelSpec
+                {
+                    DisplayName = properties.DisplayName,
+                    LanguageName = properties.LanguageName,
+                    Arguments = kernelArgs
                 };
+            }
+
+            // Add any additional arguments to the kernel spec as needed.
+            if (additionalKernelArguments != null)
+            {
+                kernelSpec.Arguments.AddRange(additionalKernelArguments);
             }
 
             // Make a temporary directory to hold the kernel spec.
             var tempKernelSpecDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+            var filesToDelete = new List<string>();
             var jsonPath = Path.Combine(tempKernelSpecDir, "kernel.json");
             Directory.CreateDirectory(tempKernelSpecDir);
             File.WriteAllText(jsonPath, JsonConvert.SerializeObject(kernelSpec));
+            filesToDelete.Add(jsonPath);
             kernelSpecDir = tempKernelSpecDir;
 
+            // Add any additional files we may need.
+            if (additionalFiles != null) {
+                foreach (var (fileName, streamAction) in additionalFiles)
+                {
+                    var dest = Path.Combine(tempKernelSpecDir, fileName);
+                    var sourceStream = streamAction();
+                    using (var destStream = File.OpenWrite(dest))
+                    {
+                        sourceStream.CopyTo(destStream);
+                    }
+                    filesToDelete.Add(dest);
+                }
+            }
+
             // Find out if we need any extra arguments.
-            var extraArgs = prefix == null ? null : $"--prefix=\"{prefix}\"";
+            var extraArgs = new List<string>();
+            if (!String.IsNullOrWhiteSpace(prefix)) { extraArgs.Add($"--prefix=\"{prefix}\""); }
+            if (user) { extraArgs.Add("--user"); }
 
             var process = Process.Start(new ProcessStartInfo
             {
                 FileName = "jupyter",
-                Arguments = $"kernelspec install {kernelSpecDir} --name=\"{properties.KernelName}\" {extraArgs}"
+                Arguments = $"kernelspec install {kernelSpecDir} --name=\"{properties.KernelName}\" {String.Join(" ", extraArgs)}"
             });
             process.WaitForExit();
-            File.Delete(jsonPath);
+            foreach (var fileName in filesToDelete)
+            {
+                try
+                {
+                    File.Delete(fileName);
+                }
+                catch {}
+            }
             Directory.Delete(tempKernelSpecDir);
             return process.ExitCode;
         }

@@ -19,6 +19,6 @@ namespace Microsoft.Jupyter.Core
         ) : base(shell, context, logger) { }
 
         public override ExecutionResult ExecuteMundane(string input, IChannel channel) =>
-            input.ToExecutionResult();
+            (Program.ShoutOption.HasValue() ? input.ToUpper() : input).ToExecutionResult();
     }
 }
