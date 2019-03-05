@@ -6,6 +6,7 @@
     <LangVersion>7.1</LangVersion>
 
     <AssemblyName>Microsoft.Jupyter.Core</AssemblyName>
+    <Version Condition=" '$(BUILD_MAJOR)' != ''  ">$(BUILD_MAJOR).$(BUILD_MINOR).$(BUILD_PATCH)</Version>
 
     <IsPackable>true</IsPackable>
     <Authors>Microsoft</Authors>
