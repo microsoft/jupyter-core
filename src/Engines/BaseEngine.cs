@@ -65,7 +65,6 @@ namespace Microsoft.Jupyter.Core
         protected List<string> History;
         private Dictionary<string, Stack<IResultEncoder>> serializers = new Dictionary<string, Stack<IResultEncoder>>();
         private List<ISymbolResolver> resolvers = new List<ISymbolResolver>();
-        private ISymbolResolver magicResolver;
 
         /// <summary>
         ///     The shell server used to communicate with the clients over the
@@ -105,9 +104,7 @@ namespace Microsoft.Jupyter.Core
             this.Logger = logger;
 
             History = new List<string>();
-            magicResolver = new MagicCommandResolver(
-                this
-            );
+            var magicResolver = new MagicCommandResolver(this);
             RegisterSymbolResolver(magicResolver);
 
             RegisterDefaultEncoders();
@@ -416,7 +413,7 @@ namespace Microsoft.Jupyter.Core
         public virtual bool IsMagic(string input, out ISymbol symbol)
         {
             var parts = input.Trim().Split(new[] { ' ' }, 2);
-            symbol = magicResolver.Resolve(parts[0]);
+            symbol = Resolve(parts[0]) as MagicSymbol;
             return symbol != null;
         }
 
@@ -471,7 +468,6 @@ namespace Microsoft.Jupyter.Core
             {
                 return ExecuteMundane(input, channel);
             }
-
         }
 
         public virtual ExecutionResult ExecuteHelp(string input, ISymbol symbol, IChannel channel)
