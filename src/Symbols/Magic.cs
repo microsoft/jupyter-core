@@ -113,7 +113,20 @@ namespace Microsoft.Jupyter.Core
                     Documentation = attr.Documentation,
                     Kind = SymbolKind.Magic,
                     Execute = (input, channel) =>
-                        (ExecutionResult)(method.Invoke(engine, new object[] { input, channel }))
+                        {
+                            try
+                            {
+                                return (ExecutionResult)(method.Invoke(engine, new object[] { input, channel }));
+                            } 
+                            catch (TargetInvocationException e)
+                            {
+                                throw e.InnerException;
+                            }
+                            catch (Exception)
+                            {
+                                throw new InvalidOperationException($"Invalid Magic Method for {symbolName}. Expecting a public method that takes a String and and IChannel as parameters.");
+                            }
+                        }
                 };
             }
             else return null;
