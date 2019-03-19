@@ -23,7 +23,8 @@ namespace Microsoft.Jupyter.Core
 
         public EncodedData? Encode(object displayable)
         {
-            if (displayable == null) throw new ArgumentNullException(nameof(displayable));
+            if (displayable == null) return null;
+
             try
             {
                 var serialized = JsonConvert.SerializeObject(displayable, converters);
@@ -40,11 +41,8 @@ namespace Microsoft.Jupyter.Core
     public class PlainTextResultEncoder : IResultEncoder
     {
         public string MimeType => MimeTypes.PlainText;
-        public EncodedData? Encode(object displayable)
-        {
-            if (displayable == null) throw new ArgumentNullException(nameof(displayable));
-            return displayable?.ToString()?.ToEncodedData();
-        }
+        public EncodedData? Encode(object displayable) =>
+            Extensions.ToEncodedData(displayable?.ToString());
     }
 
     public class ListToTextResultEncoder : IResultEncoder
@@ -52,7 +50,8 @@ namespace Microsoft.Jupyter.Core
         public string MimeType => MimeTypes.PlainText;
         public EncodedData? Encode(object displayable)
         {
-            if (displayable == null) throw new ArgumentNullException(nameof(displayable));
+            if (displayable == null) return null;
+
             if (displayable is string)
             {
                 return null;
@@ -72,7 +71,8 @@ namespace Microsoft.Jupyter.Core
         public string MimeType => MimeTypes.Html;
         public EncodedData? Encode(object displayable)
         {
-            if (displayable == null) throw new ArgumentNullException(nameof(displayable));
+            if (displayable == null) return null;
+
             if (displayable is string)
             {
                 return null;
@@ -107,7 +107,7 @@ namespace Microsoft.Jupyter.Core
 
         public EncodedData? Encode(object displayable)
         {
-            if (displayable == null) throw new ArgumentNullException(nameof(displayable));
+            if (displayable == null) return null;
             return encode(displayable);
         }
     }

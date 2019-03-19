@@ -67,6 +67,9 @@ namespace Microsoft.Jupyter.Core.Protocol
 
         internal Message AsReplyTo(Message parent)
         {
+            // No parent, just return
+            if (parent == null) return this;
+
             var reply = this.MemberwiseClone() as Message;
             reply.ZmqIdentities = parent.ZmqIdentities;
             reply.ParentHeader = parent.Header;

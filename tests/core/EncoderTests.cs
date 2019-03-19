@@ -37,6 +37,11 @@ namespace Microsoft.Jupyter.Core
             Assert.IsTrue(data.HasValue);
             Assert.AreEqual(data.Value.Data, "foo");
             Assert.AreEqual(data.Value.Metadata, null);
+
+            data = encoder.Encode(null);
+            Assert.IsTrue(data.HasValue);
+            Assert.AreEqual(data.Value.Data, null);
+            Assert.AreEqual(data.Value.Metadata, null);
         }
 
 
@@ -45,6 +50,7 @@ namespace Microsoft.Jupyter.Core
         {
             var encoder = new ListToTextResultEncoder();
             Assert.AreEqual(encoder.MimeType, MimeTypes.PlainText);
+            Assert.IsNull(encoder.Encode(null));
             var data = encoder.Encode(new [] {"foo", "bar"});
             Assert.IsTrue(data.HasValue);
             Assert.AreEqual(data.Value.Data, "foo, bar");
@@ -56,6 +62,7 @@ namespace Microsoft.Jupyter.Core
         {
             var encoder = new ListToHtmlResultEncoder();
             Assert.AreEqual(encoder.MimeType, MimeTypes.Html);
+            Assert.IsNull(encoder.Encode(null));
             var data = encoder.Encode(new [] {"foo", "bar"});
             Assert.IsTrue(data.HasValue);
             Assert.AreEqual(data.Value.Data, "<ul><li>foo</li><li>bar</li></ul>");
@@ -70,6 +77,7 @@ namespace Microsoft.Jupyter.Core
                 displayable => String.Join("", displayable.ToString().Reverse())
             );
             Assert.AreEqual(encoder.MimeType, MimeTypes.PlainText);
+            Assert.IsNull(encoder.Encode(null));
             var data = encoder.Encode("foo");
             Assert.IsTrue(data.HasValue);
             Assert.AreEqual(data.Value.Data, "oof");
@@ -81,6 +89,7 @@ namespace Microsoft.Jupyter.Core
         {
             var encoder = new TableToTextDisplayEncoder();
             Assert.AreEqual(encoder.MimeType, MimeTypes.PlainText);
+            Assert.IsNull(encoder.Encode(null));
             var data = encoder.Encode(exampleTable);
             Assert.IsTrue(data.HasValue);
             var expected = @"foo  bar
@@ -97,6 +106,7 @@ namespace Microsoft.Jupyter.Core
         {
             var encoder = new TableToHtmlDisplayEncoder();
             Assert.AreEqual(encoder.MimeType, MimeTypes.Html);
+            Assert.IsNull(encoder.Encode(null));
             var data = encoder.Encode(exampleTable);
             Assert.IsTrue(data.HasValue);
             var expected =
@@ -122,6 +132,7 @@ namespace Microsoft.Jupyter.Core
                 )
             );
             Assert.AreEqual(encoder.MimeType, MimeTypes.Json);
+            Assert.IsNull(encoder.Encode(null));
             var data = encoder.Encode(exampleTable);
             var jData = JObject.Parse(data.Value.Data);
             Assert.IsTrue(JToken.DeepEquals(
@@ -142,6 +153,7 @@ namespace Microsoft.Jupyter.Core
         public void TestSymbolIcons()
         {
             var encoder = new MagicSymbolToHtmlResultEncoder();
+            Assert.IsNull(encoder.Encode(null));
 
             foreach (SymbolKind kind in Enum.GetValues(typeof(SymbolKind)))
             {

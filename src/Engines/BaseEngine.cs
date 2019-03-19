@@ -39,19 +39,17 @@ namespace Microsoft.Jupyter.Core
 
             public void Display(object displayable)
             {
-                if (displayable == null) throw new ArgumentNullException(nameof(displayable));
                 engine.WriteDisplayData(parent, displayable);
             }
 
             public void Stderr(string message)
             {
-                if (message == null) throw new ArgumentNullException(nameof(message));
+                if (message == null) return;
                 engine.WriteToStream(parent, StreamName.StandardError, message);
             }
 
             public void Stdout(string message)
             {
-                if (message == null) throw new ArgumentNullException(nameof(message));
                 engine.WriteToStream(parent, StreamName.StandardOut, message);
             }
         }
@@ -202,31 +200,39 @@ namespace Microsoft.Jupyter.Core
 
         internal MimeBundle EncodeForDisplay(object displayable)
         {
-            if (displayable == null) throw new ArgumentNullException(nameof(displayable));
             // Each serializer contributes what it can for a given object,
             // and we take the union of their contributions, with preference
             // given to the last serializers registered.
             var displayData = MimeBundle.Empty();
+
             foreach ((var mimeType, var encoders) in serializers)
             {
                 foreach (var encoder in encoders)
                 {
-                    var encoded = encoder.Encode(displayable);
-                    if (encoded == null)
+                    try
                     {
-                        continue;
-                    }
-                    else
-                    {
-                        displayData.Data[mimeType] = encoded.Value.Data;
-                        if (encoded.Value.Metadata != null)
+                        var encoded = encoder.Encode(displayable);
+                        if (encoded == null)
                         {
-                            displayData.Metadata[mimeType] = encoded.Value.Metadata;
+                            continue;
                         }
-                        break;
+                        else
+                        {
+                            displayData.Data[mimeType] = encoded.Value.Data;
+                            if (encoded.Value.Metadata != null)
+                            {
+                                displayData.Metadata[mimeType] = encoded.Value.Metadata;
+                            }
+                            break;
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        this.Logger.LogWarning($"Encoder {encoder.GetType().FullName} threw an exception encoding '{displayable}' ({e.Message}).");
                     }
                 }
             }
+
             return displayData;
         }
 
@@ -264,8 +270,8 @@ namespace Microsoft.Jupyter.Core
         {
             try
             {
-                if (displayable == null) throw new ArgumentNullException(nameof(displayable));
                 var serialized = EncodeForDisplay(displayable);
+
                 // Send the engine's output to stdout.
                 this.ShellServer.SendIoPubMessage(
                     new Message
@@ -440,8 +446,16 @@ namespace Microsoft.Jupyter.Core
 
         public virtual bool IsMagic(string input, out ISymbol symbol)
         {
-            var parts = input.Trim().Split(new[] { ' ' }, 2);
-            symbol = Resolve(parts[0]) as MagicSymbol;
+            if (input == null)
+            {
+                symbol = null;
+            }
+            else
+            {
+                var parts = input.Trim().Split(new[] { ' ' }, 2);
+                symbol = Resolve(parts[0]) as MagicSymbol;
+            }
+
             return symbol != null;
         }
 
@@ -457,19 +471,27 @@ namespace Microsoft.Jupyter.Core
         /// </remarks>
         public virtual bool IsHelp(string input, out ISymbol symbol)
         {
-            var stripped = input.Trim();
-            string symbolName = null;
-            if (stripped.StartsWith("?"))
+            if (input == null)
             {
-                symbolName = stripped.Substring(1, stripped.Length - 1);
+                symbol = null;
             }
-            else if (stripped.EndsWith("?"))
+            else
             {
-                symbolName = stripped.Substring(0, stripped.Length - 1);
+                var stripped = input.Trim();
+                string symbolName = null;
+                if (stripped.StartsWith("?"))
+                {
+                    symbolName = stripped.Substring(1, stripped.Length - 1);
+                }
+                else if (stripped.EndsWith("?"))
+                {
+                    symbolName = stripped.Substring(0, stripped.Length - 1);
+                }
+
+                symbol = symbolName != null ? Resolve(symbolName) : null;
             }
 
-            symbol = symbolName != null ? Resolve(symbolName) : null;
-            return symbolName != null;
+            return symbol != null;
         }
 
         #endregion
