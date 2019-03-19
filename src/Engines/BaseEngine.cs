@@ -44,7 +44,6 @@ namespace Microsoft.Jupyter.Core
 
             public void Stderr(string message)
             {
-                if (message == null) return;
                 engine.WriteToStream(parent, StreamName.StandardError, message);
             }
 
