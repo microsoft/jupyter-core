@@ -228,7 +228,7 @@ namespace Microsoft.Jupyter.Core
                     }
                     catch (Exception e)
                     {
-                        this.Logger.LogWarning($"Encoder {encoder.GetType().FullName} threw an exception encoding '{displayable}' ({e.Message}).");
+                        this.Logger.LogWarning(e, $"Encoder {encoder.GetType().FullName} threw an exception encoding '{displayable}' ({e.Message}).");
                     }
                 }
             }
