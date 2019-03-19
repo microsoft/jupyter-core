@@ -39,19 +39,16 @@ namespace Microsoft.Jupyter.Core
 
             public void Display(object displayable)
             {
-                if (displayable == null) throw new ArgumentNullException(nameof(displayable));
                 engine.WriteDisplayData(parent, displayable);
             }
 
             public void Stderr(string message)
             {
-                if (message == null) throw new ArgumentNullException(nameof(message));
                 engine.WriteToStream(parent, StreamName.StandardError, message);
             }
 
             public void Stdout(string message)
             {
-                if (message == null) throw new ArgumentNullException(nameof(message));
                 engine.WriteToStream(parent, StreamName.StandardOut, message);
             }
         }
@@ -202,31 +199,39 @@ namespace Microsoft.Jupyter.Core
 
         internal MimeBundle EncodeForDisplay(object displayable)
         {
-            if (displayable == null) throw new ArgumentNullException(nameof(displayable));
             // Each serializer contributes what it can for a given object,
             // and we take the union of their contributions, with preference
             // given to the last serializers registered.
             var displayData = MimeBundle.Empty();
+
             foreach ((var mimeType, var encoders) in serializers)
             {
                 foreach (var encoder in encoders)
                 {
-                    var encoded = encoder.Encode(displayable);
-                    if (encoded == null)
+                    try
                     {
-                        continue;
-                    }
-                    else
-                    {
-                        displayData.Data[mimeType] = encoded.Value.Data;
-                        if (encoded.Value.Metadata != null)
+                        var encoded = encoder.Encode(displayable);
+                        if (encoded == null)
                         {
-                            displayData.Metadata[mimeType] = encoded.Value.Metadata;
+                            continue;
                         }
-                        break;
+                        else
+                        {
+                            displayData.Data[mimeType] = encoded.Value.Data;
+                            if (encoded.Value.Metadata != null)
+                            {
+                                displayData.Metadata[mimeType] = encoded.Value.Metadata;
+                            }
+                            break;
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        this.Logger.LogWarning(e, $"Encoder {encoder.GetType().FullName} threw an exception encoding '{displayable}' ({e.Message}).");
                     }
                 }
             }
+
             return displayData;
         }
 
@@ -236,43 +241,57 @@ namespace Microsoft.Jupyter.Core
 
         private void WriteToStream(Message parent, StreamName stream, string text)
         {
-            // Send the engine's output to stdout.
-            this.ShellServer.SendIoPubMessage(
-                new Message
-                {
-                    Header = new MessageHeader
+            try
+            {
+                // Send the engine's output to stdout.
+                this.ShellServer.SendIoPubMessage(
+                    new Message
                     {
-                        MessageType = "stream"
-                    },
-                    Content = new StreamContent
-                    {
-                        StreamName = stream,
-                        Text = text
-                    }
-                }.AsReplyTo(parent)
-            );
+                        Header = new MessageHeader
+                        {
+                            MessageType = "stream"
+                        },
+                        Content = new StreamContent
+                        {
+                            StreamName = stream,
+                            Text = text
+                        }
+                    }.AsReplyTo(parent)
+                );
+            }
+            catch(Exception e)
+            {
+                this.Logger?.LogError(e, "Unexpected error when trying to write to stream.");
+            }
         }
 
         private void WriteDisplayData(Message parent, object displayable)
         {
-            if (displayable == null) throw new ArgumentNullException(nameof(displayable));
-            var serialized = EncodeForDisplay(displayable);
-            // Send the engine's output to stdout.
-            this.ShellServer.SendIoPubMessage(
-                new Message
-                {
-                    Header = new MessageHeader
+            try
+            {
+                var serialized = EncodeForDisplay(displayable);
+
+                // Send the engine's output to stdout.
+                this.ShellServer.SendIoPubMessage(
+                    new Message
                     {
-                        MessageType = "display_data"
-                    },
-                    Content = new DisplayDataContent
-                    {
-                        Data = serialized.Data,
-                        Metadata = serialized.Metadata,
-                        Transient = null
-                    }
-                }.AsReplyTo(parent)
-            );
+                        Header = new MessageHeader
+                        {
+                            MessageType = "display_data"
+                        },
+                        Content = new DisplayDataContent
+                        {
+                            Data = serialized.Data,
+                            Metadata = serialized.Metadata,
+                            Transient = null
+                        }
+                    }.AsReplyTo(parent)
+                );
+            }
+            catch (Exception e)
+            {
+                this.Logger?.LogError(e, "Unexpected error when trying to write display data.");
+            }
         }
 
 
@@ -300,105 +319,119 @@ namespace Microsoft.Jupyter.Core
         /// <param name="message">The original request from the client.</param>
         public virtual void OnKernelInfoRequest(Message message)
         {
-            this.ShellServer.SendShellMessage(
-                new Message
-                {
-                    ZmqIdentities = message.ZmqIdentities,
-                    ParentHeader = message.Header,
-                    Metadata = null,
-                    Content = this.Context.Properties.AsKernelInfoReply(),
-                    Header = new MessageHeader
+            try
+            {
+                this.ShellServer.SendShellMessage(
+                    new Message
                     {
-                        MessageType = "kernel_info_reply",
-                        Id = Guid.NewGuid().ToString(),
-                        ProtocolVersion = "5.2.0"
+                        ZmqIdentities = message.ZmqIdentities,
+                        ParentHeader = message.Header,
+                        Metadata = null,
+                        Content = this.Context.Properties.AsKernelInfoReply(),
+                        Header = new MessageHeader
+                        {
+                            MessageType = "kernel_info_reply",
+                            Id = Guid.NewGuid().ToString(),
+                            ProtocolVersion = "5.2.0"
+                        }
                     }
-                }
-            );
+                );
+            }
+            catch (Exception e)
+            {
+                this.Logger?.LogError(e, "Unable to process KernelInfoRequest");
+            }
         }
 
         public virtual void OnExecuteRequest(Message message)
         {
             this.Logger.LogDebug($"Asked to execute code:\n{((ExecuteRequestContent)message.Content).Code}");
 
-            // Begin by sending that we're busy.
-            this.ShellServer.SendIoPubMessage(
-                new Message
-                {
-                    Header = new MessageHeader
-                    {
-                        MessageType = "status"
-                    },
-                    Content = new KernelStatusContent
-                    {
-                        ExecutionState = ExecutionState.Busy
-                    }
-                }.AsReplyTo(message)
-            );
-
-            // Run in the engine.
-            var engineResponse = Execute(
-                ((ExecuteRequestContent)message.Content).Code,
-                new ExecutionChannel(this, message)
-            );
-
-            // Send the engine's output as an execution result.
-            if (engineResponse.Output != null)
+            try
             {
-                var serialized = EncodeForDisplay(engineResponse.Output);
+                // Begin by sending that we're busy.
                 this.ShellServer.SendIoPubMessage(
+                    new Message
+                    {
+                        Header = new MessageHeader
+                        {
+                            MessageType = "status"
+                        },
+                        Content = new KernelStatusContent
+                        {
+                            ExecutionState = ExecutionState.Busy
+                        }
+                    }.AsReplyTo(message)
+                );
+
+                // Run in the engine.
+                var engineResponse = Execute(
+                    ((ExecuteRequestContent)message.Content).Code,
+                    new ExecutionChannel(this, message)
+                );
+
+                // Send the engine's output as an execution result.
+                if (engineResponse.Output != null)
+                {
+                    var serialized = EncodeForDisplay(engineResponse.Output);
+                    this.ShellServer.SendIoPubMessage(
+                        new Message
+                        {
+                            ZmqIdentities = message.ZmqIdentities,
+                            ParentHeader = message.Header,
+                            Metadata = null,
+                            Content = new ExecuteResultContent
+                            {
+                                ExecutionCount = this.ExecutionCount,
+                                Data = serialized.Data,
+                                Metadata = serialized.Metadata
+                            },
+                            Header = new MessageHeader
+                            {
+                                MessageType = "execute_result"
+                            }
+                        }
+                    );
+                }
+
+                // Handle the message.
+                this.ShellServer.SendShellMessage(
                     new Message
                     {
                         ZmqIdentities = message.ZmqIdentities,
                         ParentHeader = message.Header,
                         Metadata = null,
-                        Content = new ExecuteResultContent
+                        Content = new ExecuteReplyContent
                         {
-                            ExecutionCount = this.ExecutionCount,
-                            Data = serialized.Data,
-                            Metadata = serialized.Metadata
+                            ExecuteStatus = engineResponse.Status,
+                            ExecutionCount = this.ExecutionCount
                         },
                         Header = new MessageHeader
                         {
-                            MessageType = "execute_result"
+                            MessageType = "execute_reply"
                         }
                     }
                 );
+
+                // Finish by telling the client that we're free again.
+                this.ShellServer.SendIoPubMessage(
+                    new Message
+                    {
+                        Header = new MessageHeader
+                        {
+                            MessageType = "status"
+                        },
+                        Content = new KernelStatusContent
+                        {
+                            ExecutionState = ExecutionState.Idle
+                        }
+                    }.AsReplyTo(message)
+                );
             }
-
-            // Handle the message.
-            this.ShellServer.SendShellMessage(
-                new Message
-                {
-                    ZmqIdentities = message.ZmqIdentities,
-                    ParentHeader = message.Header,
-                    Metadata = null,
-                    Content = new ExecuteReplyContent
-                    {
-                        ExecuteStatus = engineResponse.Status,
-                        ExecutionCount = this.ExecutionCount
-                    },
-                    Header = new MessageHeader
-                    {
-                        MessageType = "execute_reply"
-                    }
-                }
-            );
-
-            // Finish by telling the client that we're free again.
-            this.ShellServer.SendIoPubMessage(
-                new Message
-                {
-                    Header = new MessageHeader
-                    {
-                        MessageType = "status"
-                    },
-                    Content = new KernelStatusContent
-                    {
-                        ExecutionState = ExecutionState.Idle
-                    }
-                }.AsReplyTo(message)
-            );
+            catch (Exception e)
+            {
+                this.Logger?.LogError(e, "Unable to process ExecuteRequest");
+            }
         }
 
         public virtual void OnShutdownRequest(Message message)
@@ -412,8 +445,16 @@ namespace Microsoft.Jupyter.Core
 
         public virtual bool IsMagic(string input, out ISymbol symbol)
         {
-            var parts = input.Trim().Split(new[] { ' ' }, 2);
-            symbol = Resolve(parts[0]) as MagicSymbol;
+            if (input == null)
+            {
+                symbol = null;
+            }
+            else
+            {
+                var parts = input.Trim().Split(new[] { ' ' }, 2);
+                symbol = Resolve(parts[0]) as MagicSymbol;
+            }
+
             return symbol != null;
         }
 
@@ -429,19 +470,27 @@ namespace Microsoft.Jupyter.Core
         /// </remarks>
         public virtual bool IsHelp(string input, out ISymbol symbol)
         {
-            var stripped = input.Trim();
-            string symbolName = null;
-            if (stripped.StartsWith("?"))
+            if (input == null)
             {
-                symbolName = stripped.Substring(1, stripped.Length - 1);
+                symbol = null;
             }
-            else if (stripped.EndsWith("?"))
+            else
             {
-                symbolName = stripped.Substring(0, stripped.Length - 1);
+                var stripped = input.Trim();
+                string symbolName = null;
+                if (stripped.StartsWith("?"))
+                {
+                    symbolName = stripped.Substring(1, stripped.Length - 1);
+                }
+                else if (stripped.EndsWith("?"))
+                {
+                    symbolName = stripped.Substring(0, stripped.Length - 1);
+                }
+
+                symbol = symbolName != null ? Resolve(symbolName) : null;
             }
 
-            symbol = symbolName != null ? Resolve(symbolName) : null;
-            return symbolName != null;
+            return symbol != null;
         }
 
         #endregion
@@ -451,22 +500,31 @@ namespace Microsoft.Jupyter.Core
         public virtual ExecutionResult Execute(string input, IChannel channel)
         {
             this.ExecutionCount++;
-            this.History.Add(input);
 
-            // We first check to see if the first token is a
-            // magic command for this kernel.
+            try
+            {
+                this.History.Add(input);
 
-            if (IsHelp(input, out var helpSymbol))
-            {
-                return ExecuteHelp(input, helpSymbol, channel);
+                // We first check to see if the first token is a
+                // magic command for this kernel.
+
+                if (IsHelp(input, out var helpSymbol))
+                {
+                    return ExecuteHelp(input, helpSymbol, channel);
+                }
+                else if (IsMagic(input, out var magicSymbol))
+                {
+                    return ExecuteMagic(input, magicSymbol, channel);
+                }
+                else
+                {
+                    return ExecuteMundane(input, channel);
+                }
             }
-            else if (IsMagic(input, out var magicSymbol))
+            catch (Exception e)
             {
-                return ExecuteMagic(input, magicSymbol, channel);
-            }
-            else
-            {
-                return ExecuteMundane(input, channel);
+                channel.Stderr(e.Message);
+                return ExecuteStatus.Error.ToExecutionResult();
             }
         }
 
