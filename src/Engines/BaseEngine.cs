@@ -596,7 +596,8 @@ namespace Microsoft.Jupyter.Core
                 (Context.Properties.KernelName, Context.Properties.KernelVersion),
                 ("Jupyter Core", typeof(BaseEngine).Assembly.GetName().Version.ToString())
             };
-            channel.Display(
+
+            return
                 new Table<(string, string)>
                 {
                     Columns = new List<(string, Func<(string, string), string>)>
@@ -605,9 +606,7 @@ namespace Microsoft.Jupyter.Core
                         ("Version", item => item.Item2)
                     },
                     Rows = versions.ToList()
-                }
-            );
-            return ExecuteStatus.Ok.ToExecutionResult();
+                }.ToExecutionResult();
         }
 
         #endregion
