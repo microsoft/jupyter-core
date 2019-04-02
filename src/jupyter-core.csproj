@@ -16,6 +16,7 @@
     <PackageLicenseUrl>https://github.com/Microsoft/jupyter-core/blob/master/LICENSE</PackageLicenseUrl>
     <PackageProjectUrl>https://github.com/Microsoft/jupyter-core/</PackageProjectUrl>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
