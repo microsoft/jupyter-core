@@ -1,0 +1,3 @@
+[submodule "examples/csharp-kernel/dotnet-script"]
+	path = examples/csharp-kernel/dotnet-script
+	url = https://github.com/filipw/dotnet-script.git
