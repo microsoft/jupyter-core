@@ -10,7 +10,6 @@
 
   <ItemGroup>
     <PackageReference Include="CommandLineParser" Version="2.2.1" />
-    <PackageReference Include="Dotnet.Script.Core" Version="0.28.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="2.1.1" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="2.1.1" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="2.1.1" />
@@ -18,7 +17,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../src/jupyter-core.csproj" />
+    <ProjectReference Include="../dotnet-script/src/Dotnet.Script.Core/Dotnet.Script.Core.csproj" />
+    <ProjectReference Include="../../../src/jupyter-core.csproj" />
   </ItemGroup>
 
 </Project>
