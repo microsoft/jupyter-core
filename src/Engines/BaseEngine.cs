@@ -523,6 +523,7 @@ namespace Microsoft.Jupyter.Core
             }
             catch (Exception e)
             {
+                Logger.LogWarning(e, $"Exception encountered when executing input: ${input}");
                 channel.Stderr(e.Message);
                 return ExecuteStatus.Error.ToExecutionResult();
             }
