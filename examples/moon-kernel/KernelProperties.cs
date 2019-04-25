@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
+using MoonSharp.Interpreter.REPL;
+
 namespace Microsoft.Jupyter.Core
 {
 
@@ -19,6 +21,7 @@ namespace Microsoft.Jupyter.Core
             LanguageFileExtension = ".lua",
 
             Description = "Runs Lua using the MoonScript interpreter."
-        };
+        }
+        .WithAdditionalVersion<ReplInterpreter>("MoonScript");
     }
 }
