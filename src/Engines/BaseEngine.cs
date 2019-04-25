@@ -593,10 +593,7 @@ namespace Microsoft.Jupyter.Core
         )]
         public ExecutionResult ExecuteVersion(string input, IChannel channel)
         {
-            var versions = new [] {
-                (Context.Properties.KernelName, Context.Properties.KernelVersion),
-                ("Jupyter Core", typeof(BaseEngine).Assembly.GetName().Version.ToString())
-            };
+            var versions = Context.Properties.VersionTable;
             channel.Display(
                 new Table<(string, string)>
                 {

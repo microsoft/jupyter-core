@@ -62,6 +62,8 @@ namespace Microsoft.Jupyter.Core
     /// </example>
     public class KernelProperties
     {
+        private IList<(string, string)> additionalVersions = new List<(string, string)>();
+
         /// <summary>
         ///     A user-friendly name for the kernel, typically used in menus.
         /// </summary>
@@ -125,6 +127,23 @@ namespace Microsoft.Jupyter.Core
         /// </summary>
         public HelpLinks[] HelpLinks { get; set; }
 
+        /// <summary>
+        ///     Returns a list of versions for the various components used by
+        ///     this kernel.
+        /// </summary>
+        /// <remarks>
+        ///     Note that versions are represented as strings rather than
+        ///     <see>System.Version</see> instances in order to represent version
+        ///     numbers that may not conform to .NET versioning standards.
+        /// </remarks>
+        public virtual IEnumerable<(string, string)> VersionTable {
+            get {
+                yield return (KernelName, KernelVersion);
+                yield return ("Jupyter Core", typeof(KernelProperties).Assembly.GetName().Version.ToString());
+                foreach (var version in additionalVersions) yield return version;
+            }
+        }
+
         public LanguageInfo AsLanguageInfo()
         {
             return new LanguageInfo
@@ -147,6 +166,39 @@ namespace Microsoft.Jupyter.Core
             };
         }
 
+        /// <summary>
+        ///      Registers an additional component in the version table reported
+        ///      by this kernel.
+        /// </summary>
+        /// <param name="component">
+        ///      The name of the component as should be reported to the user.
+        /// </param>
+        /// <param name="version">
+        ///      The version of the component as should be reported to the user.
+        /// </param>
+        public KernelProperties WithAdditionalVersion(string component, string version)
+        {
+            this.additionalVersions.Add((component, version));
+            return this;
+        }
+
+        /// <summary>
+        ///      Registers an additional component in the version table reported
+        ///      by this kernel, using the version information provided by the
+        ///      assembly for a given type.
+        /// </summary>
+        /// <typeparam name="T">
+        ///      A type from the assembly whose version should be registered as
+        ///      the version of this component.
+        /// </typeparam>
+        /// <param name="component">
+        ///      The name of the component as should be reported to the user.
+        /// </param>
+        public KernelProperties WithAdditionalVersion<T>(string component)
+        {
+            this.additionalVersions.Add((component, typeof(T).Assembly.GetName().Version.ToString()));
+            return this;
+        }
     }
 
     [JsonObject(MemberSerialization.OptIn)]
