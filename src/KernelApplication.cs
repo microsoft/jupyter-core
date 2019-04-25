@@ -63,7 +63,7 @@ namespace Microsoft.Jupyter.Core
             this.properties = properties;
             this.configure = configure;
 
-            Name = $"dotnet {properties.KernelName}";
+            Name = System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName;
             Description = properties.Description;
             this.HelpOption();
             this.VersionOption(
@@ -140,7 +140,7 @@ namespace Microsoft.Jupyter.Core
                 cmd =>
                 {
                     cmd.HelpOption();
-                    cmd.Description = $"Installs the {properties.KernelName} kernel into Jupyter.";
+                    cmd.Description = $"Installs the {properties.FriendlyName} ({properties.KernelName}) kernel into Jupyter.";
                     var developOpt = cmd.Option(
                         "--develop",
                         "Installs a kernel spec that runs against this working directory. Useful for development only.",
@@ -211,7 +211,7 @@ namespace Microsoft.Jupyter.Core
                 cmd =>
                 {
                     cmd.HelpOption();
-                    cmd.Description = $"Runs the {properties.KernelName} kernel. Typically only run by a Jupyter client.";
+                    cmd.Description = $"Runs the {properties.FriendlyName} kernel. Typically only run by a Jupyter client.";
                     var connectionFileArg = cmd.Argument(
                         "connection-file", "Connection file used to connect to a Jupyter client."
                     );
@@ -316,17 +316,17 @@ namespace Microsoft.Jupyter.Core
                 {
                     throw new InvalidDataException("Cannot use development mode together with custom tool paths.");
                 }
+
                 System.Console.WriteLine(
-                    "NOTE: Installing a kernel spec which references this directory.\n" +
+                    $"NOTE: Installing a kernel spec which references this directory.\n" +
                     $"      Any changes made in this directory will affect the operation of the {properties.FriendlyName} kernel.\n" +
-                    "      If this was not what you intended, run 'dotnet " +
-                              $"{properties.KernelName} install' without the '--develop' option."
+                    $"      If this was not what you intended, run 'install' without the '--develop' option."
                 );
 
                 // Serialize a new kernel spec that points to this directory.
                 kernelSpec = new KernelSpec
                 {
-                    DisplayName = properties.KernelName,
+                    DisplayName = properties.FriendlyName,
                     LanguageName = properties.LanguageName,
                     Arguments = new List<string> {
                         "dotnet", "run",
@@ -346,7 +346,14 @@ namespace Microsoft.Jupyter.Core
                 }
                 else
                 {
-                    kernelArgs.AddRange(new[] {"dotnet", properties.KernelName});
+                    if (System.Diagnostics.Process.GetCurrentProcess().ProcessName == "dotnet")
+                    {
+                        kernelArgs.AddRange(new[] { "dotnet", properties.KernelName });
+                    }
+                    else
+                    {
+                        kernelArgs.Add(System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName);
+                    }
                 }
 
                 kernelArgs.AddRange(
@@ -360,7 +367,7 @@ namespace Microsoft.Jupyter.Core
 
                 kernelSpec = new KernelSpec
                 {
-                    DisplayName = properties.DisplayName,
+                    DisplayName = properties.FriendlyName,
                     LanguageName = properties.LanguageName,
                     Arguments = kernelArgs
                 };

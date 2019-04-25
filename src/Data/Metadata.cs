@@ -68,8 +68,8 @@ namespace Microsoft.Jupyter.Core
         public string FriendlyName { get; set; }
 
         /// <summary>
-        ///     The command name for the kernel, such that the kernel can be
-        ///     invoked by <c>dotnet ${KernelName}</c>.
+        ///     The name for the kernel, this name will be used to register the kernel with Jupyter
+        ///     and to identify the kernel programmatically.
         /// </summary>
         public string KernelName { get; set; }
 
