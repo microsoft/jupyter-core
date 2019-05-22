@@ -52,6 +52,21 @@ namespace Microsoft.Jupyter.Core
                 engine.WriteToStream(parent, StreamName.StandardOut, message);
             }
         }
+        public class ExecutedEventArgs : EventArgs
+        {
+            public ExecutedEventArgs(ISymbol symbol, ExecutionResult result, TimeSpan duration)
+            {
+                this.Symbol = symbol;
+                this.Result = result;
+                this.Duration = duration;
+            }
+
+            public ISymbol Symbol;
+
+            public ExecutionResult Result;
+
+            public TimeSpan Duration;
+        }
 
         /// <summary>
         ///      The number of cells that have been executed since the start of
@@ -62,6 +77,13 @@ namespace Microsoft.Jupyter.Core
         protected List<string> History;
         private Dictionary<string, Stack<IResultEncoder>> serializers = new Dictionary<string, Stack<IResultEncoder>>();
         private List<ISymbolResolver> resolvers = new List<ISymbolResolver>();
+
+
+        public event EventHandler<ExecutedEventArgs> MundaneExecuted;
+
+        public event EventHandler<ExecutedEventArgs> MagicExecuted;
+
+        public event EventHandler<ExecutedEventArgs> HelpExecuted;
 
         /// <summary>
         ///     The shell server used to communicate with the clients over the
@@ -510,15 +532,15 @@ namespace Microsoft.Jupyter.Core
 
                 if (IsHelp(input, out var helpSymbol))
                 {
-                    return ExecuteHelp(input, helpSymbol, channel);
+                    return ExecuteAndNotify(input, helpSymbol, channel, ExecuteHelp, HelpExecuted);
                 }
                 else if (IsMagic(input, out var magicSymbol))
                 {
-                    return ExecuteMagic(input, magicSymbol, channel);
+                    return ExecuteAndNotify(input, magicSymbol, channel, ExecuteMagic, MagicExecuted);
                 }
                 else
                 {
-                    return ExecuteMundane(input, channel);
+                    return ExecuteAndNotify(input, channel, ExecuteMundane, MundaneExecuted);
                 }
             }
             catch (Exception e)
@@ -576,6 +598,25 @@ namespace Microsoft.Jupyter.Core
         /// </returns>
         public abstract ExecutionResult ExecuteMundane(string input, IChannel channel);
 
+        public ExecutionResult ExecuteAndNotify(string input, IChannel channel, Func<string, IChannel, ExecutionResult> action, EventHandler<ExecutedEventArgs> evt)
+        {
+            var duration = Stopwatch.StartNew();
+            var result = action(input, channel);
+            duration.Stop();
+
+            evt?.Invoke(this, new ExecutedEventArgs(null, result, duration.Elapsed));
+            return result;
+        }
+
+        public ExecutionResult ExecuteAndNotify(string input, ISymbol symbol, IChannel channel, Func<string, ISymbol, IChannel, ExecutionResult> action, EventHandler<ExecutedEventArgs> evt)
+        {
+            var duration = Stopwatch.StartNew();
+            var result = action(input, symbol, channel);
+            duration.Stop();
+
+            evt?.Invoke(this, new ExecutedEventArgs(symbol, result, duration.Elapsed));
+            return result;
+        }
         #endregion
 
         #region Example Magic Commands

@@ -12,6 +12,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using System.Reflection;
 using System.Linq;
+using Microsoft.Jupyter.Core.Protocol;
 
 namespace Microsoft.Jupyter.Core
 {
@@ -27,6 +28,16 @@ namespace Microsoft.Jupyter.Core
             = new List<Func<IEnumerable<string>>>();
 
         private readonly Action<ServiceCollection> configure;
+
+        /// <summary>
+        /// This event is called when the Kernel starts. It passes down the SerivceProvider collection.
+        /// </summary>
+        public event Action<ServiceProvider> KernelStarted;
+
+        /// <summary>
+        /// This event is called when the Kernel stops.
+        /// </summary>
+        public event Action KernelStopped;
 
         /// <summary>
         ///     Constructs a new application given properties describing a
@@ -104,7 +115,8 @@ namespace Microsoft.Jupyter.Core
             var assembly = typeof(TProgram).Assembly;
             foreach (var (name, resourcePath) in resources)
             {
-                if (assembly.GetManifestResourceInfo(resourcePath) == null) {
+                if (assembly.GetManifestResourceInfo(resourcePath) == null)
+                {
                     throw new IOException($"Kernelspec resource {name} not found at {resourcePath}.");
                 }
 
@@ -217,7 +229,7 @@ namespace Microsoft.Jupyter.Core
                     );
                     var logLevelOpt = cmd.Option<LogLevel>(
                         "-l|--log-level <LEVEL>",
-                        "Level of logging messages to emit to the console. Defaults to Error.", 
+                        "Level of logging messages to emit to the console. Defaults to Error.",
                         CommandOptionType.SingleValue
                     );
                     cmd.OnExecute(() =>
@@ -228,7 +240,7 @@ namespace Microsoft.Jupyter.Core
                             ? logLevelOpt.ParsedValue
                             : LogLevel.Error;
 
-                        return ReturnExitCode(() => StartKernel(connectionFile, logLevel));
+                        return ReturnExitCode(() => Run(connectionFile, logLevel));
                     });
                 }
             );
@@ -249,10 +261,13 @@ namespace Microsoft.Jupyter.Core
         /// </returns>
         public int ReturnExitCode(Action func)
         {
-            try {
+            try
+            {
                 func();
                 return 0;
-            } catch (Exception ex) {
+            }
+            catch (Exception ex)
+            {
                 System.Console.Error.WriteLine(ex.Message);
                 return -1;
             }
@@ -294,6 +309,10 @@ namespace Microsoft.Jupyter.Core
         ///      This is not needed in most circumstances, but can be helpful
         ///      when working with CI environments that do not add .NET Global
         ///      Tools to the PATH environment variable.
+        /// </param>
+        /// <param name="additionalKernelArguments">
+        ///     Specifies additional parameters that should be included to
+        ///     the command that starts the kernel.
         /// </param>
         /// <remarks>
         ///      This method dynamically generates a new <c>kernelspec.json</c>
@@ -346,7 +365,7 @@ namespace Microsoft.Jupyter.Core
                 }
                 else
                 {
-                    kernelArgs.AddRange(new[] {"dotnet", properties.KernelName});
+                    kernelArgs.AddRange(new[] { "dotnet", properties.KernelName });
                 }
 
                 kernelArgs.AddRange(
@@ -382,7 +401,8 @@ namespace Microsoft.Jupyter.Core
             kernelSpecDir = tempKernelSpecDir;
 
             // Add any additional files we may need.
-            if (additionalFiles != null) {
+            if (additionalFiles != null)
+            {
                 foreach (var (fileName, streamAction) in additionalFiles)
                 {
                     var dest = Path.Combine(tempKernelSpecDir, fileName);
@@ -412,7 +432,7 @@ namespace Microsoft.Jupyter.Core
                 {
                     File.Delete(fileName);
                 }
-                catch {}
+                catch { }
             }
             Directory.Delete(tempKernelSpecDir);
             return process.ExitCode;
@@ -420,15 +440,28 @@ namespace Microsoft.Jupyter.Core
 
 
         /// <summary>
-        ///     Launches a new kernel instance, loading all relevant connection
-        ///     parameters from the given connection file as provided by
-        ///     Jupyter.
+        ///     Main execution entry point. Creates the service collection and
+        ///     configures the kernel for execution based on the given connection file as provided by
+        ///     Jupyter. 
+        ///     Once services are created and configured, it calls StartKernel to start execution.
         /// </summary>
-        public int StartKernel(string connectionFile, LogLevel minLevel = LogLevel.Debug)
+        public virtual int Run(string connectionFile, LogLevel minLevel = LogLevel.Debug)
         {
-            // Begin by setting up the dependency injection that we will need
-            // in order to configure logging in a fashion that is idiomatic to
-            // .NET Core.
+            var serviceCollection = InitServiceCollection(connectionFile, minLevel);
+            var serviceProvider = InitServiceProvider(serviceCollection);
+
+            return StartKernel(serviceProvider);
+        }
+
+        /// <summary>
+        /// Creates and sets up the default configuration of the ServiceCollection.
+        /// Creates a ServiceCollection instance and then calls calls ConfigureServiceCollection 
+        /// to provide logging and others configuration and to add the internal servers needed for execution
+        /// like Heartbeat and Shell. Finally it calls the configuration method provided
+        /// during constructor to give opportunity to third parties to provide their own services and configuration.
+        /// </summary>
+        public virtual IServiceCollection InitServiceCollection(string connectionFile, LogLevel minLevel = LogLevel.Debug)
+        {
             var serviceCollection = new ServiceCollection();
             serviceCollection
                 // For now, we add a logger that reports to the console.
@@ -449,26 +482,34 @@ namespace Microsoft.Jupyter.Core
                     }
                 )
 
-                // We want to make sure that we only ever start a single
-                // copy of each listener.
-                .AddSingleton<IHeartbeatServer, HeartbeatServer>()
-                .AddSingleton<IShellServer, ShellServer>();
+                // Add the Shell and Heartbeat servers:
+                .AddKernelServers();
 
-            // After setting up the service collection, we give the specific
-            // kernel a chance to configure it. At a minimum, the specific kernel
-            // must provide an IReplEngine.
             configure(serviceCollection);
 
-            var serviceProvider = serviceCollection.BuildServiceProvider();
+            return serviceCollection;
+        }
 
+        /// <summary>
+        /// Calls serviceCollection.BuildServiceProvider(). Provides KernelApplications the ability
+        /// to perform their own actions during initialization.
+        /// </summary>
+        public virtual ServiceProvider InitServiceProvider(IServiceCollection serviceCollection) =>
+            serviceCollection.BuildServiceProvider();
+
+        /// <summary>
+        /// This method is called to start the servers and the execution engine
+        /// and the mail execution loop.
+        /// </summary>
+        public virtual int StartKernel(ServiceProvider serviceProvider)
+        {
             // Minimally, we need to start a server for each of the heartbeat,
             // control and shell sockets.
-            var logger = serviceProvider.GetService<ILogger<HeartbeatServer>>();
-            var context = serviceProvider.GetService<KernelContext>();
-
             var heartbeatServer = serviceProvider.GetService<IHeartbeatServer>();
             var shellServer = serviceProvider.GetService<IShellServer>();
             var engine = serviceProvider.GetService<IExecutionEngine>();
+
+            shellServer.ShutdownRequest += OnShutdownRequest;
 
             // We start by launching a heartbeat server, which echoes whatever
             // input it gets from the client. Clients can use this to ensure
@@ -477,7 +518,14 @@ namespace Microsoft.Jupyter.Core
             heartbeatServer.Start();
             shellServer.Start();
 
+            KernelStarted?.Invoke(serviceProvider);
+
             return 0;
+        }
+
+        private void OnShutdownRequest(Message obj)
+        {
+            KernelStopped?.Invoke();
         }
     }
 }
