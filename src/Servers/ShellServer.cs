@@ -11,6 +11,7 @@ using NetMQ;
 using NetMQ.Sockets;
 using Newtonsoft.Json;
 using Microsoft.Jupyter.Core.Protocol;
+using System.Net;
 
 namespace Microsoft.Jupyter.Core
 {
@@ -145,6 +146,10 @@ namespace Microsoft.Jupyter.Core
                             ShutdownRequest?.Invoke(nextMessage);
                             break;
                     }
+                }
+                catch (ProtocolViolationException ex)
+                {
+                    logger.LogCritical(ex, $"Protocol violation when trying to receive next ZeroMQ message.");
                 }
                 catch (ThreadInterruptedException)
                 {
