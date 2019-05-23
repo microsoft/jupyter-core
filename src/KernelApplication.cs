@@ -81,9 +81,11 @@ namespace Microsoft.Jupyter.Core
             this.VersionOption(
                 "--version",
                 () => properties.KernelVersion,
-                () =>
-                    $"Language kernel: {properties.KernelVersion}\n" +
-                    $"Jupyter core: {typeof(KernelApplication).Assembly.GetName().Version}"
+                () => String.Join("\n",
+                    properties
+                    .VersionTable
+                    .Select(row => $"{row.Item1}: {row.Item2}")
+                )
             );
         }
 
