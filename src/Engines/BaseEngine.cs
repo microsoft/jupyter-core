@@ -54,6 +54,39 @@ namespace Microsoft.Jupyter.Core
         }
 
         /// <summary>
+        /// The list of arguments passed down to the <c>MundaneExecuted</c>, 
+        /// <c>MagicExecuted</c> and <c>HelpExecuted</c> events.
+        /// </summary>
+        public class ExecutedEventArgs : EventArgs
+        {
+            /// <summary>
+            /// Default constructor, populates the corresponding event fields.
+            /// </summary>
+            public ExecutedEventArgs(ISymbol symbol, ExecutionResult result, TimeSpan duration)
+            {
+                this.Symbol = symbol;
+                this.Result = result;
+                this.Duration = duration;
+            }
+
+            /// <summary>
+            /// The symbol, for example the Magic symbol, that was executed.
+            /// For the <c>MundaneExecuted</c> this is null.
+            /// </summary>
+            public ISymbol Symbol { get; }
+
+            /// <summary>
+            /// The actual result from the execution.
+            /// </summary>
+            public ExecutionResult Result { get; }
+
+            /// <summary>
+            /// How long the execution took.
+            /// </summary>
+            public TimeSpan Duration { get; }
+        }
+
+        /// <summary>
         ///      The number of cells that have been executed since the start of
         ///      this engine. Used by clients to typeset cell numbers, e.g.:
         ///      <c>In[12]:</c>.
@@ -62,6 +95,23 @@ namespace Microsoft.Jupyter.Core
         protected List<string> History;
         private Dictionary<string, Stack<IResultEncoder>> serializers = new Dictionary<string, Stack<IResultEncoder>>();
         private List<ISymbolResolver> resolvers = new List<ISymbolResolver>();
+
+        /// <summary>
+        /// This event is triggered when a non-magic cell is executed.
+        /// </summary>
+        public event EventHandler<ExecutedEventArgs> MundaneExecuted;
+
+        /// <summary>
+        /// This event is triggered when a magic command is executed. Magic commands are typically
+        /// identified by symbols that is pre-fixed with '%' (like <c>%history</c>).
+        /// </summary>
+        public event EventHandler<ExecutedEventArgs> MagicExecuted;
+
+        /// <summary>
+        /// This event is triggered when a the help command is executed. Help commands are typically
+        /// identified when a symbols starts or finishes with '?' (like <c>history?</c>).
+        /// </summary>
+        public event EventHandler<ExecutedEventArgs> HelpExecuted;
 
         /// <summary>
         ///     The shell server used to communicate with the clients over the
@@ -497,6 +547,15 @@ namespace Microsoft.Jupyter.Core
 
         #region Command Execution
 
+        /// <summary>
+        /// Main entry point to execute a Jupyter cell.
+        /// 
+        /// It identifies if the cell contains a help or magic command and triggers ExecuteHelp
+        /// or ExecuteMagic accordingly. If no special symbols are found, it triggers ExecuteMundane.
+        /// </summary>
+        /// <param name="input">the cell's content.</param>
+        /// <param name="channel">the channel to generate messages or errors.</param>
+        /// <returns>An <c>ExecutionResult</c> instance with the results of </returns>
         public virtual ExecutionResult Execute(string input, IChannel channel)
         {
             this.ExecutionCount++;
@@ -510,15 +569,15 @@ namespace Microsoft.Jupyter.Core
 
                 if (IsHelp(input, out var helpSymbol))
                 {
-                    return ExecuteHelp(input, helpSymbol, channel);
+                    return ExecuteAndNotify(input, helpSymbol, channel, ExecuteHelp, HelpExecuted);
                 }
                 else if (IsMagic(input, out var magicSymbol))
                 {
-                    return ExecuteMagic(input, magicSymbol, channel);
+                    return ExecuteAndNotify(input, magicSymbol, channel, ExecuteMagic, MagicExecuted);
                 }
                 else
                 {
-                    return ExecuteMundane(input, channel);
+                    return ExecuteAndNotify(input, channel, ExecuteMundane, MundaneExecuted);
                 }
             }
             catch (Exception e)
@@ -576,6 +635,31 @@ namespace Microsoft.Jupyter.Core
         /// </returns>
         public abstract ExecutionResult ExecuteMundane(string input, IChannel channel);
 
+        /// <summary>
+        ///     Executes the given action with the corresponding parameters, and then triggers the given event.
+        /// </summary>
+        public ExecutionResult ExecuteAndNotify(string input, IChannel channel, Func<string, IChannel, ExecutionResult> action, EventHandler<ExecutedEventArgs> evt)
+        {
+            var duration = Stopwatch.StartNew();
+            var result = action(input, channel);
+            duration.Stop();
+
+            evt?.Invoke(this, new ExecutedEventArgs(null, result, duration.Elapsed));
+            return result;
+        }
+
+        /// <summary>
+        ///     Executes the given action with the corresponding parameters, and then triggers the given event.
+        /// </summary>
+        public ExecutionResult ExecuteAndNotify(string input, ISymbol symbol, IChannel channel, Func<string, ISymbol, IChannel, ExecutionResult> action, EventHandler<ExecutedEventArgs> evt)
+        {
+            var duration = Stopwatch.StartNew();
+            var result = action(input, symbol, channel);
+            duration.Stop();
+
+            evt?.Invoke(this, new ExecutedEventArgs(symbol, result, duration.Elapsed));
+            return result;
+        }
         #endregion
 
         #region Example Magic Commands
