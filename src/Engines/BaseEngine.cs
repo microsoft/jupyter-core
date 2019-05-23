@@ -52,8 +52,16 @@ namespace Microsoft.Jupyter.Core
                 engine.WriteToStream(parent, StreamName.StandardOut, message);
             }
         }
+
+        /// <summary>
+        /// The list of arguments passed down to the <c>MundaneExecuted</c>, 
+        /// <c>MagicExecuted</c> and <c>HelpExecuted</c> events.
+        /// </summary>
         public class ExecutedEventArgs : EventArgs
         {
+            /// <summary>
+            /// Default constructor, populates the corresponding event fields.
+            /// </summary>
             public ExecutedEventArgs(ISymbol symbol, ExecutionResult result, TimeSpan duration)
             {
                 this.Symbol = symbol;
@@ -61,11 +69,21 @@ namespace Microsoft.Jupyter.Core
                 this.Duration = duration;
             }
 
-            public ISymbol Symbol;
+            /// <summary>
+            /// The symbol, for example the Magic symbol, that was executed.
+            /// For the <c>MundaneExecuted</c> this is null.
+            /// </summary>
+            public ISymbol Symbol { get; }
 
-            public ExecutionResult Result;
+            /// <summary>
+            /// The actual result from the execution.
+            /// </summary>
+            public ExecutionResult Result { get; }
 
-            public TimeSpan Duration;
+            /// <summary>
+            /// How long the execution took.
+            /// </summary>
+            public TimeSpan Duration { get; }
         }
 
         /// <summary>
@@ -78,11 +96,21 @@ namespace Microsoft.Jupyter.Core
         private Dictionary<string, Stack<IResultEncoder>> serializers = new Dictionary<string, Stack<IResultEncoder>>();
         private List<ISymbolResolver> resolvers = new List<ISymbolResolver>();
 
-
+        /// <summary>
+        /// This event is triggered when a non-magic cell is executed.
+        /// </summary>
         public event EventHandler<ExecutedEventArgs> MundaneExecuted;
 
+        /// <summary>
+        /// This event is triggered when a magic command is executed. Magic commands are typically
+        /// identified by symbols that is pre-fixed with '%' (like <c>%history</c>).
+        /// </summary>
         public event EventHandler<ExecutedEventArgs> MagicExecuted;
 
+        /// <summary>
+        /// This event is triggered when a the help command is executed. Help commands are typically
+        /// identified when a symbols starts or finishes with '?' (like <c>history?</c>).
+        /// </summary>
         public event EventHandler<ExecutedEventArgs> HelpExecuted;
 
         /// <summary>
@@ -519,6 +547,15 @@ namespace Microsoft.Jupyter.Core
 
         #region Command Execution
 
+        /// <summary>
+        /// Main entry point to execute a Jupyter cell.
+        /// 
+        /// It identifies if the cell contains a help or magic command and triggers ExecuteHelp
+        /// or ExecuteMagic accordingly. If no special symbols are found, it triggers ExecuteMundane.
+        /// </summary>
+        /// <param name="input">the cell's content.</param>
+        /// <param name="channel">the channel to generate messages or errors.</param>
+        /// <returns>An <c>ExecutionResult</c> instance with the results of </returns>
         public virtual ExecutionResult Execute(string input, IChannel channel)
         {
             this.ExecutionCount++;
@@ -598,6 +635,9 @@ namespace Microsoft.Jupyter.Core
         /// </returns>
         public abstract ExecutionResult ExecuteMundane(string input, IChannel channel);
 
+        /// <summary>
+        ///     Executes the given action with the corresponding parameters, and then triggers the given event.
+        /// </summary>
         public ExecutionResult ExecuteAndNotify(string input, IChannel channel, Func<string, IChannel, ExecutionResult> action, EventHandler<ExecutedEventArgs> evt)
         {
             var duration = Stopwatch.StartNew();
@@ -608,6 +648,9 @@ namespace Microsoft.Jupyter.Core
             return result;
         }
 
+        /// <summary>
+        ///     Executes the given action with the corresponding parameters, and then triggers the given event.
+        /// </summary>
         public ExecutionResult ExecuteAndNotify(string input, ISymbol symbol, IChannel channel, Func<string, ISymbol, IChannel, ExecutionResult> action, EventHandler<ExecutedEventArgs> evt)
         {
             var duration = Stopwatch.StartNew();

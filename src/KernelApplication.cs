@@ -30,7 +30,8 @@ namespace Microsoft.Jupyter.Core
         private readonly Action<ServiceCollection> configure;
 
         /// <summary>
-        /// This event is called when the Kernel starts. It passes down the SerivceProvider collection.
+        /// This event is called when the Kernel starts. It passes down the SerivceProvider collection
+        /// with all the current services used in dependency injection.
         /// </summary>
         public event Action<ServiceProvider> KernelStarted;
 
