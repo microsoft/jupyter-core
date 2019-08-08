@@ -166,6 +166,11 @@ namespace Microsoft.Jupyter.Core
                         "Installs the kernel for the current user only.",
                         CommandOptionType.NoValue
                     );
+                    var sysPrefixOpt = cmd.Option(
+                        "--sys-prefix",
+                        "Installs the kernel into the prefix given by Python's sys.prefix. Useful with conda env/venv.",
+                        CommandOptionType.NoValue
+                    );
                     var logLevelOpt = cmd.Option<LogLevel>(
                         "-l|--log-level <LEVEL>",
                         "Level of logging messages to emit to the console. On development mode, defaults to Information.",
@@ -194,6 +199,7 @@ namespace Microsoft.Jupyter.Core
                             develop, logLevel,
                             prefix: prefix,
                             user: userOpt.HasValue(),
+                            sysPrefix: sysPrefixOpt.HasValue(),
                             additionalFiles: additionalFiles,
                             additionalKernelArguments:
                                 additionalKernelArgumentSources
@@ -297,6 +303,10 @@ namespace Microsoft.Jupyter.Core
         /// <param name="user">
         ///      If <c>true</c>, the kernel will be installed for the current
         ///      user only.
+        /// </param>        
+        /// <param name="sysPrefix">
+        ///      If <c>true</c>, the kernel will be installed into the current
+        ///      <c>sys.prefix</c>.
         /// </param>
         /// <param name="additionalFiles">
         ///      Specifies additional files which should be included in the kernelspec
@@ -325,7 +335,7 @@ namespace Microsoft.Jupyter.Core
         /// </remarks>
         public int InstallKernelSpec(bool develop,
                                      LogLevel logLevel,
-                                     string prefix = null, bool user = false,
+                                     string prefix = null, bool user = false, bool sysPrefix = false,
                                      IDictionary<string, Func<Stream>> additionalFiles = null,
                                      IEnumerable<string> additionalKernelArguments = null,
                                      string pathToTool = null)
@@ -422,6 +432,7 @@ namespace Microsoft.Jupyter.Core
             var extraArgs = new List<string>();
             if (!String.IsNullOrWhiteSpace(prefix)) { extraArgs.Add($"--prefix=\"{prefix}\""); }
             if (user) { extraArgs.Add("--user"); }
+            if (sysPrefix) { extraArgs.Add("--sys-prefix"); }
 
             var process = Process.Start(new ProcessStartInfo
             {
