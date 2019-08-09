@@ -183,9 +183,14 @@ namespace Microsoft.Jupyter.Core
                     );
                     var toolPathOpt = cmd.Option<string>(
                         "--path-to-tool <PATH>",
-                        "Specified an explicit path to the kernel tool being installed, rather than using the .NET command. " +
+                        "Specifies an explicit path to the kernel tool being installed, rather than using the .NET command. " +
                         "This option is incompatible with --develop, and isn't typically needed except in CI builds or other automated environments.",
                         CommandOptionType.SingleValue
+                    );
+                    var extraInstallArgsOpt = cmd.Option<string>(
+                        "--extra-install-arg <ARG>",
+                        "Specifies an extra argument to pass to Jupyter when installing this kernel.",
+                        CommandOptionType.MultipleValue
                     );
                     cmd.OnExecute(() =>
                     {
@@ -195,11 +200,21 @@ namespace Microsoft.Jupyter.Core
                             ? logLevelOpt.ParsedValue
                             : (develop ? LogLevel.Information : LogLevel.Error);
                         var prefix = prefixOpt.HasValue() ? prefixOpt.Value() : null;
+                        var extraInstallArgs = extraInstallArgsOpt
+                            .Values
+                            .ToList();
+                        if (userOpt.HasValue())
+                        {
+                            extraInstallArgs.Add("--user");
+                        }
+                        if (sysPrefixOpt.HasValue())
+                        {
+                            extraInstallArgs.Add("--sys-prefix");
+                        }
                         return ReturnExitCode(() => InstallKernelSpec(
                             develop, logLevel,
                             prefix: prefix,
-                            user: userOpt.HasValue(),
-                            sysPrefix: sysPrefixOpt.HasValue(),
+                            extraInstallArgs: extraInstallArgs,
                             additionalFiles: additionalFiles,
                             additionalKernelArguments:
                                 additionalKernelArgumentSources
@@ -300,13 +315,9 @@ namespace Microsoft.Jupyter.Core
         ///      Typically, this parameter is used when installing into an environment.
         ///      If <c>null</c>, no prefix is passed to Jupyter.
         /// </param>
-        /// <param name="user">
-        ///      If <c>true</c>, the kernel will be installed for the current
-        ///      user only.
-        /// </param>        
-        /// <param name="sysPrefix">
-        ///      If <c>true</c>, the kernel will be installed into the current
-        ///      <c>sys.prefix</c>.
+        /// <param name="extraInstallArgs">
+        ///      A collection of additional arguments to be provided to Jupyter
+        ///      when installing the kernel.
         /// </param>
         /// <param name="additionalFiles">
         ///      Specifies additional files which should be included in the kernelspec
@@ -335,7 +346,7 @@ namespace Microsoft.Jupyter.Core
         /// </remarks>
         public int InstallKernelSpec(bool develop,
                                      LogLevel logLevel,
-                                     string prefix = null, bool user = false, bool sysPrefix = false,
+                                     string prefix = null, IEnumerable<string> extraInstallArgs = null,
                                      IDictionary<string, Func<Stream>> additionalFiles = null,
                                      IEnumerable<string> additionalKernelArguments = null,
                                      string pathToTool = null)
@@ -429,10 +440,8 @@ namespace Microsoft.Jupyter.Core
             }
 
             // Find out if we need any extra arguments.
-            var extraArgs = new List<string>();
+            var extraArgs = extraInstallArgs?.ToList() ?? new List<string>();
             if (!String.IsNullOrWhiteSpace(prefix)) { extraArgs.Add($"--prefix=\"{prefix}\""); }
-            if (user) { extraArgs.Add("--user"); }
-            if (sysPrefix) { extraArgs.Add("--sys-prefix"); }
 
             var process = Process.Start(new ProcessStartInfo
             {
