@@ -13,6 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 using System.Reflection;
 using System.Linq;
 using Microsoft.Jupyter.Core.Protocol;
+using System.ComponentModel;
 
 namespace Microsoft.Jupyter.Core
 {
@@ -443,12 +444,50 @@ namespace Microsoft.Jupyter.Core
             var extraArgs = extraInstallArgs?.ToList() ?? new List<string>();
             if (!String.IsNullOrWhiteSpace(prefix)) { extraArgs.Add($"--prefix=\"{prefix}\""); }
 
-            var process = Process.Start(new ProcessStartInfo
+            Process process = null;
+            try
             {
-                FileName = "jupyter",
-                Arguments = $"kernelspec install {kernelSpecDir} --name=\"{properties.KernelName}\" {String.Join(" ", extraArgs)}"
-            });
-            process.WaitForExit();
+                process = Process.Start(new ProcessStartInfo
+                {
+                    FileName = "jupyter",
+                    Arguments = $"kernelspec install {kernelSpecDir} --name=\"{properties.KernelName}\" {String.Join(" ", extraArgs)}"
+                });
+            }
+            catch (Win32Exception ex)
+            {
+                System.Console.ForegroundColor = ConsoleColor.Red;
+                if (ex.NativeErrorCode == 2)
+                {
+                    System.Console.Error.WriteLine(
+                        "[ERROR] " +
+                        $"Could not install {properties.KernelName} into your Jupyter configuration, " +
+                        "as `jupyter` was not found on your PATH. " +
+                        "Please make sure that Jupyter is installed and is on your PATH. " +
+                        "If you are using conda or venv, please " +
+                        "make sure that you have the correct environment activated.\n"
+                    );
+                }
+                else
+                {
+                    System.Console.Error.WriteLine(
+                        "[ERROR] " +
+                        $"An exception occured while trying to call `jupyter` to install {properties.KernelName} " +
+                        "into your Jupyter configuration.\n"
+                    );
+                }
+                System.Console.ResetColor();
+                System.Console.Error.WriteLine(
+                    "Full exception details:\n" + ex.ToString()
+                );
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine(ex);
+                return -2;
+            }
+
+            process?.WaitForExit();
+
             foreach (var fileName in filesToDelete)
             {
                 try
@@ -458,7 +497,7 @@ namespace Microsoft.Jupyter.Core
                 catch { }
             }
             Directory.Delete(tempKernelSpecDir);
-            return process.ExitCode;
+            return process?.ExitCode ?? -1;
         }
 
 
