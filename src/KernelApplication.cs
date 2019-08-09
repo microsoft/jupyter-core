@@ -376,7 +376,6 @@ namespace Microsoft.Jupyter.Core
                     {
                         kernelArgs.Add(System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName);
                     }
-                    kernelArgs.AddRange(new[] { "dotnet", properties.KernelName });
                 }
 
                 kernelArgs.AddRange(
