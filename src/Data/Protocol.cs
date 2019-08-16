@@ -219,7 +219,7 @@ namespace Microsoft.Jupyter.Core.Protocol
         [JsonProperty("metadata")]
         public Dictionary<string, string> Metadata { get; set; } = new Dictionary<string, string>();
 
-        [JsonProperty("transient")]
+        [JsonProperty("transient", NullValueHandling=NullValueHandling.Ignore)]
         public TransientDisplayData Transient { get; set; } = null;
     }
 
