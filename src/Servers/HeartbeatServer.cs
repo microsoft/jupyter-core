@@ -13,7 +13,7 @@ namespace Microsoft.Jupyter.Core
     public class HeartbeatServer : IDisposable, IHeartbeatServer
     {
         private bool alive = false;
-        private Thread thread;
+        private Thread? thread;
         private ResponseSocket socket;
 
         private ILogger<HeartbeatServer> logger;
@@ -35,12 +35,19 @@ namespace Microsoft.Jupyter.Core
             thread.Start();
         }
 
-        public void Join() => thread.Join();
+        public void Join()
+        {
+            if (thread == null)
+            {
+                throw new Exception("Cannot join, thread has not been started or has been stopped");
+            }
+            thread.Join();
+        }
 
         public void Stop()
         {
             alive = false;
-            thread.Interrupt();
+            thread?.Interrupt();
             socket?.Close();
             Join();
             thread = null;

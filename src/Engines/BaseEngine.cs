@@ -62,7 +62,7 @@ namespace Microsoft.Jupyter.Core
             /// <summary>
             /// Default constructor, populates the corresponding event fields.
             /// </summary>
-            public ExecutedEventArgs(ISymbol symbol, ExecutionResult result, TimeSpan duration)
+            public ExecutedEventArgs(ISymbol? symbol, ExecutionResult result, TimeSpan duration)
             {
                 this.Symbol = symbol;
                 this.Result = result;
@@ -73,7 +73,7 @@ namespace Microsoft.Jupyter.Core
             /// The symbol, for example the Magic symbol, that was executed.
             /// For the <c>MundaneExecuted</c> this is null.
             /// </summary>
-            public ISymbol Symbol { get; }
+            public ISymbol? Symbol { get; }
 
             /// <summary>
             /// The actual result from the execution.
@@ -99,19 +99,19 @@ namespace Microsoft.Jupyter.Core
         /// <summary>
         /// This event is triggered when a non-magic cell is executed.
         /// </summary>
-        public event EventHandler<ExecutedEventArgs> MundaneExecuted;
+        public event EventHandler<ExecutedEventArgs>? MundaneExecuted;
 
         /// <summary>
         /// This event is triggered when a magic command is executed. Magic commands are typically
         /// identified by symbols that is pre-fixed with '%' (like <c>%history</c>).
         /// </summary>
-        public event EventHandler<ExecutedEventArgs> MagicExecuted;
+        public event EventHandler<ExecutedEventArgs>? MagicExecuted;
 
         /// <summary>
         /// This event is triggered when a the help command is executed. Help commands are typically
         /// identified when a symbols starts or finishes with '?' (like <c>history?</c>).
         /// </summary>
-        public event EventHandler<ExecutedEventArgs> HelpExecuted;
+        public event EventHandler<ExecutedEventArgs>? HelpExecuted;
 
         /// <summary>
         ///     The shell server used to communicate with the clients over the
@@ -182,7 +182,7 @@ namespace Microsoft.Jupyter.Core
         ///     The most recently added symbol resolvers are used first, falling
         ///     back through to the oldest resolver until a resolution is found.
         /// </remarks>
-        public ISymbol Resolve(string symbolName)
+        public ISymbol? Resolve(string symbolName)
         {
             if (symbolName == null) { throw new ArgumentNullException(nameof(symbolName)); }
             foreach (var resolver in resolvers.EnumerateInReverse())
@@ -493,7 +493,24 @@ namespace Microsoft.Jupyter.Core
 
         #region Command Parsing
 
-        public virtual bool IsMagic(string input, out ISymbol symbol)
+        /// <summary>
+        ///     Checks if a given input cell is an invocation to a magic
+        ///     command, and if so, resolves the symbol corresponding to the
+        ///     invoked magic command.
+        /// </summary>
+        /// <param name="input">
+        ///     The input to be checked.
+        /// </param>
+        /// <param name="symbol">
+        ///     If the input is not a magic invocation, or is an invocation of
+        ///     a magic command that failed to resolve, set to <c>null</c>.
+        ///     Otherwise, this parameter is set to the resolved magic symbol.
+        /// </param>
+        /// <returns>
+        ///     <c>true</c> if the given input is an invocation to a magic
+        ///     command.
+        /// </returns>
+        public virtual bool IsMagic(string input, out ISymbol? symbol)
         {
             if (input == null)
             {
@@ -508,7 +525,7 @@ namespace Microsoft.Jupyter.Core
             return symbol != null;
         }
 
-        /// <summmary>
+        /// <summary>
         ///      Returns <c>true</c> if a given input is a request for help
         ///      on a symbol. If this method returns true, then <c>symbol</c>
         ///      will be populated with the resolution of the symbol targeted
@@ -518,7 +535,7 @@ namespace Microsoft.Jupyter.Core
         ///      If an input is a request for help on an invalid symbol, then
         ///      this method will return true, but <c>symbol</c> will be null.
         /// </remarks>
-        public virtual bool IsHelp(string input, out ISymbol symbol)
+        public virtual bool IsHelp(string input, out ISymbol? symbol)
         {
             if (input == null)
             {
@@ -527,7 +544,7 @@ namespace Microsoft.Jupyter.Core
             else
             {
                 var stripped = input.Trim();
-                string symbolName = null;
+                string? symbolName = null;
                 if (stripped.StartsWith("?"))
                 {
                     symbolName = stripped.Substring(1, stripped.Length - 1);
@@ -588,7 +605,7 @@ namespace Microsoft.Jupyter.Core
             }
         }
 
-        public virtual ExecutionResult ExecuteHelp(string input, ISymbol symbol, IChannel channel)
+        public virtual ExecutionResult ExecuteHelp(string input, ISymbol? symbol, IChannel channel)
         {
             if (symbol == null)
             {
@@ -601,7 +618,7 @@ namespace Microsoft.Jupyter.Core
             }
         }
 
-        public virtual ExecutionResult ExecuteMagic(string input, ISymbol symbol, IChannel channel)
+        public virtual ExecutionResult ExecuteMagic(string input, ISymbol? symbol, IChannel channel)
         {
             // We should never be called with an ISymbol that isn't a MagicSymbol,
             // since this method should only be called by using magicResolver.
@@ -638,7 +655,7 @@ namespace Microsoft.Jupyter.Core
         /// <summary>
         ///     Executes the given action with the corresponding parameters, and then triggers the given event.
         /// </summary>
-        public ExecutionResult ExecuteAndNotify(string input, IChannel channel, Func<string, IChannel, ExecutionResult> action, EventHandler<ExecutedEventArgs> evt)
+        public ExecutionResult ExecuteAndNotify(string input, IChannel channel, Func<string, IChannel, ExecutionResult> action, EventHandler<ExecutedEventArgs>? evt)
         {
             var duration = Stopwatch.StartNew();
             var result = action(input, channel);
@@ -651,7 +668,7 @@ namespace Microsoft.Jupyter.Core
         /// <summary>
         ///     Executes the given action with the corresponding parameters, and then triggers the given event.
         /// </summary>
-        public ExecutionResult ExecuteAndNotify(string input, ISymbol symbol, IChannel channel, Func<string, ISymbol, IChannel, ExecutionResult> action, EventHandler<ExecutedEventArgs> evt)
+        public ExecutionResult ExecuteAndNotify(string input, ISymbol? symbol, IChannel channel, Func<string, ISymbol?, IChannel, ExecutionResult> action, EventHandler<ExecutedEventArgs>? evt)
         {
             var duration = Stopwatch.StartNew();
             var result = action(input, symbol, channel);

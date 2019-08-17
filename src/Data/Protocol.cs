@@ -60,17 +60,17 @@ namespace Microsoft.Jupyter.Core.Protocol
         public MessageHeader ParentHeader { get; set; }
 
         // FIXME: make not just an object.
-        public object Metadata { get; set; }
+        public object? Metadata { get; set; }
 
         // FIXME: make not just an object.
         public MessageContent Content { get; set; }
 
-        internal Message AsReplyTo(Message parent)
+        internal Message AsReplyTo(Message? parent)
         {
-            // No parent, just return
+            // No actual parent, just return.
             if (parent == null) return this;
 
-            var reply = this.MemberwiseClone() as Message;
+            var reply = (this.MemberwiseClone() as Message)!;
             reply.ZmqIdentities = parent.ZmqIdentities;
             reply.ParentHeader = parent.Header;
             reply.Header.Session = parent.Header.Session;
@@ -214,13 +214,13 @@ namespace Microsoft.Jupyter.Core.Protocol
     public class DisplayDataContent : MessageContent
     {
         [JsonProperty("data")]
-        public Dictionary<string, string> Data { get; set; }
+        public Dictionary<string, string> Data { get; set; } = new Dictionary<string, string>();
 
         [JsonProperty("metadata")]
         public Dictionary<string, string> Metadata { get; set; } = new Dictionary<string, string>();
 
         [JsonProperty("transient", NullValueHandling=NullValueHandling.Ignore)]
-        public TransientDisplayData Transient { get; set; } = null;
+        public TransientDisplayData? Transient { get; set; } = null;
     }
 
 }

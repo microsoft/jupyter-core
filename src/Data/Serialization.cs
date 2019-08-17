@@ -9,9 +9,9 @@ using System.Runtime.Serialization;
 namespace Microsoft.Jupyter.Core
 {
 
-    public class IpAddressConverter : JsonConverter<IPAddress>
+    public class IpAddressConverter : JsonConverter<IPAddress?>
     {
-        public override IPAddress ReadJson(JsonReader reader, Type objectType, IPAddress existingValue, bool hasExistingValue, JsonSerializer serializer)
+        public override IPAddress? ReadJson(JsonReader reader, Type objectType, IPAddress? existingValue, bool hasExistingValue, JsonSerializer serializer)
         {
             if (reader.TokenType == JsonToken.Null)
             {
@@ -27,8 +27,17 @@ namespace Microsoft.Jupyter.Core
             }
         }
 
-        public override void WriteJson(JsonWriter writer, IPAddress value, JsonSerializer serializer) =>
-            writer.WriteValue(value.ToString());
+        public override void WriteJson(JsonWriter writer, IPAddress? value, JsonSerializer serializer)
+        {
+            if (value == null)
+            {
+                writer.WriteNull();
+            }
+            else
+            {
+                writer.WriteValue(value?.ToString());
+            }
+        }
     }
 
 }

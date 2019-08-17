@@ -34,12 +34,12 @@ namespace Microsoft.Jupyter.Core
         /// This event is called when the Kernel starts. It passes down the SerivceProvider collection
         /// with all the current services used in dependency injection.
         /// </summary>
-        public event Action<ServiceProvider> KernelStarted;
+        public event Action<ServiceProvider>? KernelStarted;
 
         /// <summary>
         /// This event is called when the Kernel stops.
         /// </summary>
-        public event Action KernelStopped;
+        public event Action? KernelStopped;
 
         /// <summary>
         ///     Constructs a new application given properties describing a
@@ -149,7 +149,7 @@ namespace Microsoft.Jupyter.Core
         ///     This command assumes that the command <c>jupyter</c> is on the
         ///     user's <c>PATH</c>.
         /// </remarks>
-        public KernelApplication AddInstallCommand(Action<CommandLineApplication> configure = null)
+        public KernelApplication AddInstallCommand(Action<CommandLineApplication>? configure = null)
         {
             var installCmd = this.Command(
                 "install",
@@ -228,7 +228,7 @@ namespace Microsoft.Jupyter.Core
                     });
                 }
             );
-            if (configure != null) { configure(installCmd); }
+            configure?.Invoke(installCmd);
 
             return this;
         }
@@ -241,7 +241,7 @@ namespace Microsoft.Jupyter.Core
         ///     This command is typically not run by end users directly, but
         ///     by Jupyter on the user's behalf.
         /// </remarks>
-        public KernelApplication AddKernelCommand(Action<CommandLineApplication> configure = null)
+        public KernelApplication AddKernelCommand(Action<CommandLineApplication>? configure = null)
         {
             var kernelCmd = this.Command(
                 "kernel",
@@ -269,7 +269,7 @@ namespace Microsoft.Jupyter.Core
                     });
                 }
             );
-            if (configure != null) { configure(kernelCmd); }
+            configure?.Invoke(kernelCmd);
 
             return this;
         }
@@ -347,10 +347,10 @@ namespace Microsoft.Jupyter.Core
         /// </remarks>
         public int InstallKernelSpec(bool develop,
                                      LogLevel logLevel,
-                                     string prefix = null, IEnumerable<string> extraInstallArgs = null,
-                                     IDictionary<string, Func<Stream>> additionalFiles = null,
-                                     IEnumerable<string> additionalKernelArguments = null,
-                                     string pathToTool = null)
+                                     string? prefix = null, IEnumerable<string>? extraInstallArgs = null,
+                                     IDictionary<string, Func<Stream>>? additionalFiles = null,
+                                     IEnumerable<string>? additionalKernelArguments = null,
+                                     string? pathToTool = null)
         {
             var kernelSpecDir = "";
             KernelSpec kernelSpec;
@@ -451,7 +451,7 @@ namespace Microsoft.Jupyter.Core
             var extraArgs = extraInstallArgs?.ToList() ?? new List<string>();
             if (!String.IsNullOrWhiteSpace(prefix)) { extraArgs.Add($"--prefix=\"{prefix}\""); }
 
-            Process process = null;
+            Process? process = null;
             try
             {
                 process = Process.Start(new ProcessStartInfo

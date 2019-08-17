@@ -42,7 +42,7 @@ namespace Microsoft.Jupyter.Core
     public struct EncodedData
     {
         public string Data;
-        public string Metadata;
+        public string? Metadata;
     }
 
     public interface IResultEncoder

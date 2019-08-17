@@ -38,12 +38,15 @@ namespace Microsoft.Jupyter.Core
         ///     Encapsulates encoded data into an <see cref="EncodedData" />
         ///     value without metadata.
         /// </summary>
-        public static EncodedData ToEncodedData(this string data) =>
-            new EncodedData
-            {
-                Data = data,
-                Metadata = null
-            };
+        public static EncodedData? ToEncodedData(this string? data) =>
+            data == null
+            ? null
+            : (EncodedData?)
+              new EncodedData
+              {
+                  Data = data,
+                  Metadata = null
+              };
 
         /// <summary>
         ///     Encapsulates an execution status as a result object without

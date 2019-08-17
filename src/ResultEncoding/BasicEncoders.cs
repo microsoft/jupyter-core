@@ -10,15 +10,15 @@ namespace Microsoft.Jupyter.Core
 
     public class JsonResultEncoder : IResultEncoder
     {
-        private readonly ILogger logger;
+        private readonly ILogger? logger;
         private readonly JsonConverter[] converters;
 
         public string MimeType => MimeTypes.Json;
 
-        public JsonResultEncoder(ILogger logger = null, JsonConverter[] converters = null)
+        public JsonResultEncoder(ILogger? logger = null, IEnumerable<JsonConverter>? converters = null)
         {
             this.logger = logger;
-            this.converters = converters ?? new JsonConverter[] {};
+            this.converters = converters?.ToArray() ?? new JsonConverter[] {};
         }
 
         public EncodedData? Encode(object displayable)

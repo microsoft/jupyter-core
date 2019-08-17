@@ -15,7 +15,7 @@ namespace Microsoft.Jupyter.Core
     public struct ExecutionResult
     {
         public ExecuteStatus Status;
-        public object Output;
+        public object? Output;
     }
 
 }

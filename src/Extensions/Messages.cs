@@ -24,7 +24,7 @@ namespace Microsoft.Jupyter.Core
         public static Message ReceiveMessage(
             this NetMQSocket socket,
             KernelContext context,
-            Encoding encoding = null
+            Encoding? encoding = null
         )
         {
             encoding = encoding ?? Encoding.UTF8;

@@ -3,7 +3,14 @@
   <PropertyGroup>
     <OutputType>Library</OutputType>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <LangVersion>7.1</LangVersion>
+    <LangVersion>8.0</LangVersion>
+    <Nullable>enable</Nullable>
+
+    <!-- NB:
+      Disable the warning for uninitialized members, as this is a
+      current limitation of Newtonsoft.Json.
+    -->
+    <NoWarn>CS8618</NoWarn>
 
     <AssemblyName>Microsoft.Jupyter.Core</AssemblyName>
     <Version Condition=" '$(BUILD_MAJOR)' != ''  ">$(BUILD_MAJOR).$(BUILD_MINOR).$(BUILD_PATCH)</Version>

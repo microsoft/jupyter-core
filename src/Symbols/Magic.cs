@@ -25,7 +25,7 @@ namespace Microsoft.Jupyter.Core
         public MagicCommandAttribute(
             string name,
             string summary,
-            string fullDocumentation = null
+            string? fullDocumentation = null
         )
         {
             Name = name;
@@ -102,7 +102,7 @@ namespace Microsoft.Jupyter.Core
 
         }
 
-        public ISymbol Resolve(string symbolName)
+        public ISymbol? Resolve(string symbolName)
         {
             if (this.methods.ContainsKey(symbolName))
             {
