@@ -108,6 +108,7 @@ namespace Microsoft.Jupyter.Core
 
         private void EventLoop(NetMQSocket socket)
         {
+            this.logger.LogDebug("Starting shell server event loop at {Address}.", socket);
             while (alive)
             {
                 try

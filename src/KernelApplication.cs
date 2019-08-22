@@ -247,6 +247,7 @@ namespace Microsoft.Jupyter.Core
                 "kernel",
                 cmd =>
                 {
+                    var logEnvVarName = $"{properties.KernelName.ToUpperInvariant()}_LOG_LEVEL";
                     cmd.HelpOption();
                     cmd.Description = $"Runs the {properties.FriendlyName} kernel. Typically only run by a Jupyter client.";
                     var connectionFileArg = cmd.Argument(
@@ -254,16 +255,24 @@ namespace Microsoft.Jupyter.Core
                     );
                     var logLevelOpt = cmd.Option<LogLevel>(
                         "-l|--log-level <LEVEL>",
-                        "Level of logging messages to emit to the console. Defaults to Error.",
+                        "Level of logging messages to emit to the console. Defaults to Error." +
+                        $"Can also be set with the {logEnvVarName} environment variable.",
                         CommandOptionType.SingleValue
                     );
                     cmd.OnExecute(() =>
                     {
                         var connectionFile = connectionFileArg.Value;
+                        // Check if there is an environment variable set that
+                        // overrides logging level, then check the command line
+                        // option, and finally fall back to a reasonable default.
+                        var logLevelFromEnv =
+                            System.Environment.GetEnvironmentVariable(logEnvVarName);
                         var logLevel =
-                            logLevelOpt.HasValue()
-                            ? logLevelOpt.ParsedValue
-                            : LogLevel.Error;
+                            logLevelFromEnv == null
+                            ? logLevelOpt.HasValue()
+                               ? logLevelOpt.ParsedValue
+                               : LogLevel.Error
+                            : (LogLevel)Enum.Parse(typeof(LogLevel), logLevelFromEnv);
 
                         return ReturnExitCode(() => Run(connectionFile, logLevel));
                     });
@@ -511,7 +520,7 @@ namespace Microsoft.Jupyter.Core
         /// <summary>
         ///     Main execution entry point. Creates the service collection and
         ///     configures the kernel for execution based on the given connection file as provided by
-        ///     Jupyter. 
+        ///     Jupyter.
         ///     Once services are created and configured, it calls StartKernel to start execution.
         /// </summary>
         public virtual int Run(string connectionFile, LogLevel minLevel = LogLevel.Debug)
@@ -532,30 +541,36 @@ namespace Microsoft.Jupyter.Core
         public virtual IServiceCollection InitServiceCollection(string connectionFile, LogLevel minLevel = LogLevel.Debug)
         {
             var serviceCollection = new ServiceCollection();
-            serviceCollection
-                // For now, we add a logger that reports to the console.
-                // TODO: add a logger that reports back to the client.
-                .AddLogging(configure => configure.AddConsole())
-                .Configure<LoggerFilterOptions>(
-                    options => options.MinLevel = minLevel
-                )
+            // Use a temporary logger factory so that we can report information
+            // gathered during startup.
+            using (var loggerFactory = new LoggerFactory())
+            {
+                loggerFactory.AddConsole(minLevel);
+                var logger = loggerFactory.CreateLogger(this.GetType().FullName);
 
-                // We need to pass along the context to each server, including
-                // information gleaned from the connection file and from user
-                // preferences.
-                .Configure<KernelContext>(
-                    ctx =>
-                    {
-                        ctx.LoadConnectionFile(connectionFile);
-                        ctx.Properties = properties;
-                    }
-                )
+                serviceCollection
+                    // For now, we add a logger that reports to the console.
+                    // TODO: add a logger that reports back to the client.
+                    .AddLogging(configure => configure.AddConsole())
+                    .Configure<LoggerFilterOptions>(
+                        options => options.MinLevel = minLevel
+                    )
+                    // We need to pass along the context to each server, including
+                    // information gleaned from the connection file and from user
+                    // preferences.
+                    .Configure<KernelContext>(
+                        ctx =>
+                        {
+                            ctx.LoadConnectionFile(connectionFile, logger);
+                            ctx.Properties = properties;
+                        }
+                    )
 
-                // Add the Shell and Heartbeat servers:
-                .AddKernelServers();
+                    // Add the Shell and Heartbeat servers:
+                    .AddKernelServers();
 
-            configure(serviceCollection);
-
+                configure(serviceCollection);
+            }
             return serviceCollection;
         }
 
@@ -572,6 +587,9 @@ namespace Microsoft.Jupyter.Core
         /// </summary>
         public virtual int StartKernel(ServiceProvider serviceProvider)
         {
+            var logger = serviceProvider.GetService<ILogger<KernelApplication>>();
+            logger.LogDebug("Starting kernel services...");
+
             // Minimally, we need to start a server for each of the heartbeat,
             // control and shell sockets.
             var heartbeatServer = serviceProvider.GetService<IHeartbeatServer>();

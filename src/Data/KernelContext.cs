@@ -5,6 +5,7 @@ using System;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
 namespace Microsoft.Jupyter.Core
@@ -26,9 +27,15 @@ namespace Microsoft.Jupyter.Core
         /// <param name="connectionFile">
         ///     A path to the connection file to be loaded.
         /// </param>
-        public void LoadConnectionFile(string connectionFile)
+        /// <param name="logger">
+        ///     A logger object used to report debugging information from the
+        ///     connection file.
+        /// </param>
+        public void LoadConnectionFile(string connectionFile, ILogger logger = null)
         {
+            logger?.LogDebug("Loading kernel context from connection file: {connectionFile}.", connectionFile);
             this.ConnectionInfo = JsonConvert.DeserializeObject<ConnectionInfo>(File.ReadAllText(connectionFile));
+            logger?.LogDebug("Loaded connection information:\n{connectionInfo}", this.ConnectionInfo);
         }
 
         internal HMAC NewHmac() {
