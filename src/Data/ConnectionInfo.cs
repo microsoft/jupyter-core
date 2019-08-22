@@ -118,5 +118,12 @@ namespace Microsoft.Jupyter.Core
         }
         #endregion
 
+        #region Diagnostic Support
+
+        public override string ToString() =>
+            JsonConvert.SerializeObject(this, Formatting.Indented);
+
+        #endregion
+
     }
 }
