@@ -3,7 +3,7 @@
 ##
 
 steps:
-- task: DotNetCoreInstaller@0
+- task: DotNetCoreInstaller@1
   displayName: 'Install .NET Core SDK 3.0.100'
   inputs:
     version: 3.0.100
