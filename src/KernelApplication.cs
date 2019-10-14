@@ -545,16 +545,19 @@ namespace Microsoft.Jupyter.Core
             // gathered during startup.
             using (var loggerFactory = new LoggerFactory())
             {
-                loggerFactory.AddConsole(minLevel);
                 var logger = loggerFactory.CreateLogger(this.GetType().FullName);
 
                 serviceCollection
                     // For now, we add a logger that reports to the console.
                     // TODO: add a logger that reports back to the client.
-                    .AddLogging(configure => configure.AddConsole())
-                    .Configure<LoggerFilterOptions>(
-                        options => options.MinLevel = minLevel
-                    )
+                    .AddLogging(loggingBuilder =>
+                    {
+                        loggingBuilder
+                            .SetMinimumLevel(minLevel)
+                            .AddFilter("Microsoft", minLevel)
+                            .AddFilter("System", minLevel)
+                            .AddConsole();
+                    })
                     // We need to pass along the context to each server, including
                     // information gleaned from the connection file and from user
                     // preferences.
