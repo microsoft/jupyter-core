@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.Extensions.Logging.Console;
 using Newtonsoft.Json.Linq;
+using Microsoft.Extensions.Logging;
 
 namespace Microsoft.Jupyter.Core
 {
@@ -124,29 +125,32 @@ namespace Microsoft.Jupyter.Core
         [TestMethod]
         public void TestJsonEncoder()
         {
-            var encoder = new JsonResultEncoder(
-                new ConsoleLogger(
-                    "test",
-                    (msg, level) => true,
-                    true
-                )
-            );
-            Assert.AreEqual(encoder.MimeType, MimeTypes.Json);
-            Assert.IsNull(encoder.Encode(null));
-            var data = encoder.Encode(exampleTable);
-            var jData = JObject.Parse(data.Value.Data);
-            Assert.IsTrue(JToken.DeepEquals(
-                jData,
-                new JObject
-                {
-                    {"rows", new JArray
-                        {
-                            new JObject { {"Item1", 42}, {"Item2", 3.14} },
-                            new JObject { {"Item1", 1337}, {"Item2", 2.718} },
+            using (var loggingFactory = LoggerFactory.Create(builder =>
+                builder
+                    .AddFilter((name, level) => true)
+                    .AddConsole(options => options.IncludeScopes = true)
+            ))
+            {
+                var encoder = new JsonResultEncoder(
+                    loggingFactory.CreateLogger("test")
+                );
+                Assert.AreEqual(encoder.MimeType, MimeTypes.Json);
+                Assert.IsNull(encoder.Encode(null));
+                var data = encoder.Encode(exampleTable);
+                var jData = JObject.Parse(data.Value.Data);
+                Assert.IsTrue(JToken.DeepEquals(
+                    jData,
+                    new JObject
+                    {
+                        {"rows", new JArray
+                            {
+                                new JObject { {"Item1", 42}, {"Item2", 3.14} },
+                                new JObject { {"Item1", 1337}, {"Item2", 2.718} },
+                            }
                         }
                     }
-                }
-            ));
+                ));
+            }
         }
 
         [TestMethod]
