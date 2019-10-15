@@ -150,7 +150,7 @@ namespace Microsoft.Jupyter.Core
                     Assembly
                     .GetEntryAssembly()
                     ?.GetCustomAttribute<TargetFrameworkAttribute>()
-                    ?.FrameworkName
+                    ?.FrameworkName ?? ""
                 );
                 foreach (var version in additionalVersions) yield return version;
             }
