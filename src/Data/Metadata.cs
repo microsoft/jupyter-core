@@ -10,6 +10,7 @@ using Microsoft.Jupyter.Core.Protocol;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.Versioning;
 
 namespace Microsoft.Jupyter.Core
 {
@@ -140,6 +141,17 @@ namespace Microsoft.Jupyter.Core
             get {
                 yield return (KernelName, KernelVersion);
                 yield return ("Jupyter Core", typeof(KernelProperties).Assembly.GetName().Version.ToString());
+                yield return (
+                    ".NET Runtime",
+                    // Use the technique documented at
+                    //     https://weblog.west-wind.com/posts/2018/Apr/12/Getting-the-NET-Core-Runtime-Version-in-a-Running-Application
+                    // to get the target framework moniker of the entry point for the kernel,
+                    // so that we can report that as a version.
+                    Assembly
+                    .GetEntryAssembly()
+                    ?.GetCustomAttribute<TargetFrameworkAttribute>()
+                    ?.FrameworkName ?? ""
+                );
                 foreach (var version in additionalVersions) yield return version;
             }
         }
