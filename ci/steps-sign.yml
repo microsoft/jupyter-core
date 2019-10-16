@@ -3,11 +3,16 @@
 ##
 steps:
 
+- task: DotNetCoreInstaller@1
+  displayName: 'Install .NET Core SDK 2.2.401'
+  inputs:
+    version: 2.2.401
+
 - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@1
   displayName: 'Signing: strong name'
   inputs:
     ConnectedServiceName: CodeSign
-    FolderPath: src
+    FolderPath: src\bin\$(Build.Configuration)
     CertificateId: 267
     OpusName: 'Microsoft Jupyter Core'
     OpusInfo: 'https://github.com/Microsoft/jupyter-core'
@@ -18,7 +23,7 @@ steps:
   displayName: 'Signing: authenticode'
   inputs:
     ConnectedServiceName: CodeSign
-    FolderPath: src
+    FolderPath: src\bin\$(Build.Configuration)
     CertificateId: 400
     OpusName: 'Microsoft Jupyter Core'
     OpusInfo: 'https://github.com/Microsoft/jupyter-core'
