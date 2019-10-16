@@ -3,6 +3,11 @@
 ##
 steps:
 
+- task: DotNetCoreInstaller@1
+  displayName: 'Install .NET Core SDK 2.2.401'
+  inputs:
+    version: 2.2.401
+
 - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@1
   displayName: 'Signing: strong name'
   inputs:
