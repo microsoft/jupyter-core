@@ -466,7 +466,7 @@ namespace Microsoft.Jupyter.Core
                 process = Process.Start(new ProcessStartInfo
                 {
                     FileName = "jupyter",
-                    Arguments = $"kernelspec install {kernelSpecDir} --name=\"{properties.KernelName}\" {String.Join(" ", extraArgs)}"
+                    Arguments = $"kernelspec install \"{kernelSpecDir}\" --name=\"{properties.KernelName}\" {String.Join(" ", extraArgs)}"
                 });
             }
             catch (Win32Exception ex)
