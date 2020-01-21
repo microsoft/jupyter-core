@@ -1,6 +1,6 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
-
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -29,17 +29,18 @@ namespace Microsoft.Jupyter.Core
             = new List<Func<IEnumerable<string>>>();
 
         private readonly Action<ServiceCollection> configure;
+        private Action<ILoggingBuilder>? configureLogging;
 
         /// <summary>
         /// This event is called when the Kernel starts. It passes down the SerivceProvider collection
         /// with all the current services used in dependency injection.
         /// </summary>
-        public event Action<ServiceProvider> KernelStarted;
+        public event Action<ServiceProvider>? KernelStarted;
 
         /// <summary>
         /// This event is called when the Kernel stops.
         /// </summary>
-        public event Action KernelStopped;
+        public event Action? KernelStopped;
 
         /// <summary>
         ///     Constructs a new application given properties describing a
@@ -149,7 +150,7 @@ namespace Microsoft.Jupyter.Core
         ///     This command assumes that the command <c>jupyter</c> is on the
         ///     user's <c>PATH</c>.
         /// </remarks>
-        public KernelApplication AddInstallCommand(Action<CommandLineApplication> configure = null)
+        public KernelApplication AddInstallCommand(Action<CommandLineApplication>? configure = null)
         {
             var installCmd = this.Command(
                 "install",
@@ -228,7 +229,7 @@ namespace Microsoft.Jupyter.Core
                     });
                 }
             );
-            if (configure != null) { configure(installCmd); }
+            configure?.Invoke(installCmd);
 
             return this;
         }
@@ -241,7 +242,7 @@ namespace Microsoft.Jupyter.Core
         ///     This command is typically not run by end users directly, but
         ///     by Jupyter on the user's behalf.
         /// </remarks>
-        public KernelApplication AddKernelCommand(Action<CommandLineApplication> configure = null)
+        public KernelApplication AddKernelCommand(Action<CommandLineApplication>? configure = null)
         {
             var kernelCmd = this.Command(
                 "kernel",
@@ -278,8 +279,23 @@ namespace Microsoft.Jupyter.Core
                     });
                 }
             );
-            if (configure != null) { configure(kernelCmd); }
+            configure?.Invoke(kernelCmd);
 
+            return this;
+        }
+
+        /// <summary>
+        ///     Uses an action to further configure logging, e.g.: to redirect
+        ///     logging messages to a file.
+        /// </summary>
+        /// <param name="configure">
+        ///     An action that applies the desired logging configuration to a
+        ///     given logging builder.
+        /// </param>
+        public KernelApplication ConfigureLogging(Action<ILoggingBuilder> configure)
+        {
+            if (configureLogging != null) { throw new Exception($"Logging has already been configured."); }
+            configureLogging = configure;
             return this;
         }
 
@@ -356,10 +372,10 @@ namespace Microsoft.Jupyter.Core
         /// </remarks>
         public int InstallKernelSpec(bool develop,
                                      LogLevel logLevel,
-                                     string prefix = null, IEnumerable<string> extraInstallArgs = null,
-                                     IDictionary<string, Func<Stream>> additionalFiles = null,
-                                     IEnumerable<string> additionalKernelArguments = null,
-                                     string pathToTool = null)
+                                     string? prefix = null, IEnumerable<string>? extraInstallArgs = null,
+                                     IDictionary<string, Func<Stream>>? additionalFiles = null,
+                                     IEnumerable<string>? additionalKernelArguments = null,
+                                     string? pathToTool = null)
         {
             var kernelSpecDir = "";
             KernelSpec kernelSpec;
@@ -460,7 +476,7 @@ namespace Microsoft.Jupyter.Core
             var extraArgs = extraInstallArgs?.ToList() ?? new List<string>();
             if (!String.IsNullOrWhiteSpace(prefix)) { extraArgs.Add($"--prefix=\"{prefix}\""); }
 
-            Process process = null;
+            Process? process = null;
             try
             {
                 process = Process.Start(new ProcessStartInfo
@@ -487,7 +503,7 @@ namespace Microsoft.Jupyter.Core
                 {
                     System.Console.Error.WriteLine(
                         "[ERROR] " +
-                        $"An exception occured while trying to call `jupyter` to install {properties.KernelName} " +
+                        $"An exception occurred while trying to call `jupyter` to install {properties.KernelName} " +
                         "into your Jupyter configuration.\n"
                     );
                 }
@@ -533,7 +549,7 @@ namespace Microsoft.Jupyter.Core
 
         /// <summary>
         /// Creates and sets up the default configuration of the ServiceCollection.
-        /// Creates a ServiceCollection instance and then calls calls ConfigureServiceCollection 
+        /// Creates a ServiceCollection instance and then calls calls ConfigureServiceCollection
         /// to provide logging and others configuration and to add the internal servers needed for execution
         /// like Heartbeat and Shell. Finally it calls the configuration method provided
         /// during constructor to give opportunity to third parties to provide their own services and configuration.
@@ -557,6 +573,7 @@ namespace Microsoft.Jupyter.Core
                             .AddFilter("Microsoft", minLevel)
                             .AddFilter("System", minLevel)
                             .AddConsole();
+                        configureLogging?.Invoke(loggingBuilder);
                     })
                     // We need to pass along the context to each server, including
                     // information gleaned from the connection file and from user

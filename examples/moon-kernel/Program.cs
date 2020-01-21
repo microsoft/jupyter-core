@@ -24,7 +24,14 @@ namespace Microsoft.Jupyter.Core
             var app = new KernelApplication(
                 PROPERTIES,
                 Init
-            );
+            )
+            .ConfigureLogging(loggingBuilder =>
+            {
+                loggingBuilder.AddFile(
+                    Path.Join(Directory.GetCurrentDirectory(), "imoon.log"),
+                    minimumLevel: LogLevel.Debug
+                );
+            });
 
             return app.WithDefaultCommands().Execute(args);
         }
