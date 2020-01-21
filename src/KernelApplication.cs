@@ -1,5 +1,6 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
+#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -34,12 +35,12 @@ namespace Microsoft.Jupyter.Core
         /// This event is called when the Kernel starts. It passes down the SerivceProvider collection
         /// with all the current services used in dependency injection.
         /// </summary>
-        public event Action<ServiceProvider> KernelStarted;
+        public event Action<ServiceProvider>? KernelStarted;
 
         /// <summary>
         /// This event is called when the Kernel stops.
         /// </summary>
-        public event Action KernelStopped;
+        public event Action? KernelStopped;
 
         /// <summary>
         ///     Constructs a new application given properties describing a
@@ -149,7 +150,7 @@ namespace Microsoft.Jupyter.Core
         ///     This command assumes that the command <c>jupyter</c> is on the
         ///     user's <c>PATH</c>.
         /// </remarks>
-        public KernelApplication AddInstallCommand(Action<CommandLineApplication> configure = null)
+        public KernelApplication AddInstallCommand(Action<CommandLineApplication>? configure = null)
         {
             var installCmd = this.Command(
                 "install",
@@ -228,7 +229,7 @@ namespace Microsoft.Jupyter.Core
                     });
                 }
             );
-            if (configure != null) { configure(installCmd); }
+            configure?.Invoke(installCmd);
 
             return this;
         }
@@ -241,13 +242,15 @@ namespace Microsoft.Jupyter.Core
         ///     This command is typically not run by end users directly, but
         ///     by Jupyter on the user's behalf.
         /// </remarks>
-        public KernelApplication AddKernelCommand(Action<CommandLineApplication> configure = null)
+        public KernelApplication AddKernelCommand(Action<CommandLineApplication>? configure = null)
         {
             var kernelCmd = this.Command(
                 "kernel",
                 cmd =>
                 {
-                    var logEnvVarName = $"{properties.KernelName.ToUpperInvariant()}_LOG_LEVEL";
+                    var invariantName = properties.KernelName.ToUpperInvariant();
+                    var logLevelEnvVarName = $"{invariantName}_LOG_LEVEL";
+                    var logFileEnvVarName = $"{invariantName}_LOG_FILE";
                     cmd.HelpOption();
                     cmd.Description = $"Runs the {properties.FriendlyName} kernel. Typically only run by a Jupyter client.";
                     var connectionFileArg = cmd.Argument(
@@ -256,7 +259,13 @@ namespace Microsoft.Jupyter.Core
                     var logLevelOpt = cmd.Option<LogLevel>(
                         "-l|--log-level <LEVEL>",
                         "Level of logging messages to emit to the console. Defaults to Error." +
-                        $"Can also be set with the {logEnvVarName} environment variable.",
+                        $"Can also be set with the {logLevelEnvVarName} environment variable.",
+                        CommandOptionType.SingleValue
+                    );
+                    var logFileOpt = cmd.Option<string>(
+                        "--log-file <FILE>",
+                        "Path to write logging messages to." +
+                        $"Can also be set with the {logFileEnvVarName} environment variable.",
                         CommandOptionType.SingleValue
                     );
                     cmd.OnExecute(() =>
@@ -266,7 +275,7 @@ namespace Microsoft.Jupyter.Core
                         // overrides logging level, then check the command line
                         // option, and finally fall back to a reasonable default.
                         var logLevelFromEnv =
-                            System.Environment.GetEnvironmentVariable(logEnvVarName);
+                            System.Environment.GetEnvironmentVariable(logLevelEnvVarName);
                         var logLevel =
                             logLevelFromEnv == null
                             ? logLevelOpt.HasValue()
@@ -274,11 +283,18 @@ namespace Microsoft.Jupyter.Core
                                : LogLevel.Error
                             : (LogLevel)Enum.Parse(typeof(LogLevel), logLevelFromEnv);
 
-                        return ReturnExitCode(() => Run(connectionFile, logLevel));
+                        var logFileFromEnv =
+                            System.Environment.GetEnvironmentVariable(logFileEnvVarName);
+                        var logFile = logFileFromEnv
+                                      ?? (logFileOpt.HasValue()
+                                          ? logFileOpt.ParsedValue
+                                          : null);
+
+                        return ReturnExitCode(() => Run(connectionFile, logLevel, logFile));
                     });
                 }
             );
-            if (configure != null) { configure(kernelCmd); }
+            configure?.Invoke(kernelCmd);
 
             return this;
         }
@@ -356,10 +372,10 @@ namespace Microsoft.Jupyter.Core
         /// </remarks>
         public int InstallKernelSpec(bool develop,
                                      LogLevel logLevel,
-                                     string prefix = null, IEnumerable<string> extraInstallArgs = null,
-                                     IDictionary<string, Func<Stream>> additionalFiles = null,
-                                     IEnumerable<string> additionalKernelArguments = null,
-                                     string pathToTool = null)
+                                     string? prefix = null, IEnumerable<string>? extraInstallArgs = null,
+                                     IDictionary<string, Func<Stream>>? additionalFiles = null,
+                                     IEnumerable<string>? additionalKernelArguments = null,
+                                     string? pathToTool = null)
         {
             var kernelSpecDir = "";
             KernelSpec kernelSpec;
@@ -460,7 +476,7 @@ namespace Microsoft.Jupyter.Core
             var extraArgs = extraInstallArgs?.ToList() ?? new List<string>();
             if (!String.IsNullOrWhiteSpace(prefix)) { extraArgs.Add($"--prefix=\"{prefix}\""); }
 
-            Process process = null;
+            Process? process = null;
             try
             {
                 process = Process.Start(new ProcessStartInfo
@@ -523,9 +539,9 @@ namespace Microsoft.Jupyter.Core
         ///     Jupyter.
         ///     Once services are created and configured, it calls StartKernel to start execution.
         /// </summary>
-        public virtual int Run(string connectionFile, LogLevel minLevel = LogLevel.Debug)
+        public virtual int Run(string connectionFile, LogLevel minLevel = LogLevel.Debug, string? logFile = null)
         {
-            var serviceCollection = InitServiceCollection(connectionFile, minLevel);
+            var serviceCollection = InitServiceCollection(connectionFile, minLevel, logFile);
             var serviceProvider = InitServiceProvider(serviceCollection);
 
             return StartKernel(serviceProvider);
@@ -538,7 +554,7 @@ namespace Microsoft.Jupyter.Core
         /// like Heartbeat and Shell. Finally it calls the configuration method provided
         /// during constructor to give opportunity to third parties to provide their own services and configuration.
         /// </summary>
-        public virtual IServiceCollection InitServiceCollection(string connectionFile, LogLevel minLevel = LogLevel.Debug)
+        public virtual IServiceCollection InitServiceCollection(string connectionFile, LogLevel minLevel = LogLevel.Debug, string? logFile = null)
         {
             var serviceCollection = new ServiceCollection();
             // Use a temporary logger factory so that we can report information
@@ -557,6 +573,10 @@ namespace Microsoft.Jupyter.Core
                             .AddFilter("Microsoft", minLevel)
                             .AddFilter("System", minLevel)
                             .AddConsole();
+                        if (logFile != null)
+                        {
+                            loggingBuilder.AddFile(logFile);
+                        }
                     })
                     // We need to pass along the context to each server, including
                     // information gleaned from the connection file and from user
