@@ -15,6 +15,8 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="3.0.0" />
     <PackageReference Include="MoonSharp" Version="2.0.0" />
     <PackageReference Include="System.Configuration.ConfigurationManager" Version="4.5.0" />
+
+    <PackageReference Include="Serilog.Extensions.Logging.File" Version="2.0.0-dev-00039" />
   </ItemGroup>
 
   <ItemGroup>
