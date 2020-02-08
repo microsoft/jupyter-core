@@ -133,20 +133,16 @@ namespace Microsoft.Jupyter.Core
 
                     // Get a service that can handle the message type and
                     // dispatch.
-                    switch (nextMessage.Header.MessageType)
-                    {
-                        case "kernel_info_request":
-                            KernelInfoRequest?.Invoke(nextMessage);
-                            break;
-
-                        case "execute_request":
-                            ExecuteRequest?.Invoke(nextMessage);
-                            break;
-
-                        case "shutdown_request":
-                            ShutdownRequest?.Invoke(nextMessage);
-                            break;
-                    }
+                    (
+                        nextMessage.Header.MessageType switch
+                        {
+                            "kernel_info_request" => KernelInfoRequest,
+                            "execute_request" => ExecuteRequest,
+                            "shutdown_request" => ShutdownRequest,
+                            _ => CustomRequest
+                        }
+                    )
+                    ?.Invoke(nextMessage);
                 }
                 catch (ProtocolViolationException ex)
                 {
@@ -165,6 +161,7 @@ namespace Microsoft.Jupyter.Core
         public event Action<Message> KernelInfoRequest;
         public event Action<Message> ExecuteRequest;
         public event Action<Message> ShutdownRequest;
+        public event Action<Message> CustomRequest;
 
         protected virtual void Dispose(bool disposing)
         {

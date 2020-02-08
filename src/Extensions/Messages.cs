@@ -113,7 +113,7 @@ namespace Microsoft.Jupyter.Core
             //       message frames.
 
             var zmqMessage = new NetMQMessage();
-            var frames = new[] 
+            var frames = new[]
                 {
                     message.Header,
                     message.ParentHeader,

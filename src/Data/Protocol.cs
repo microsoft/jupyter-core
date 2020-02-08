@@ -25,6 +25,7 @@ namespace Microsoft.Jupyter.Core.Protocol
         {
             ProtocolVersion = "5.2.0";
             Id = Guid.NewGuid().ToString();
+            Username = Environment.UserName;
         }
 
         [JsonProperty("msg_id")]
