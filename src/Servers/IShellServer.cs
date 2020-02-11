@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using Microsoft.Jupyter.Core.Protocol;
@@ -12,7 +12,6 @@ namespace Microsoft.Jupyter.Core
         event Action<Message> ExecuteRequest;
 
         event Action<Message> ShutdownRequest;
-        event Action<Message> CustomRequest;
 
         void SendShellMessage(Message message);
 

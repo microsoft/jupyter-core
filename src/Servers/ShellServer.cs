@@ -50,18 +50,25 @@ namespace Microsoft.Jupyter.Core
         private ILogger<ShellServer> logger;
         private KernelContext context;
         private IServiceProvider provider;
+        private IShellRouter router;
 
         private string session;
 
         public ShellServer(
             ILogger<ShellServer> logger,
             IOptions<KernelContext> context,
-            IServiceProvider provider
+            IServiceProvider provider,
+            IShellRouter router
         )
         {
             this.logger = logger;
             this.context = context.Value;
             this.provider = provider;
+            this.router = router;
+
+            router.RegisterHandler("kernel_info_request", message => KernelInfoRequest?.Invoke(message));
+            router.RegisterHandler("execute_request", message => ExecuteRequest?.Invoke(message));
+            router.RegisterHandler("shutdown_request", message => ShutdownRequest?.Invoke(message));
         }
 
         public void Start()
@@ -133,16 +140,7 @@ namespace Microsoft.Jupyter.Core
 
                     // Get a service that can handle the message type and
                     // dispatch.
-                    (
-                        nextMessage.Header.MessageType switch
-                        {
-                            "kernel_info_request" => KernelInfoRequest,
-                            "execute_request" => ExecuteRequest,
-                            "shutdown_request" => ShutdownRequest,
-                            _ => CustomRequest
-                        }
-                    )
-                    ?.Invoke(nextMessage);
+                    router.Handle(nextMessage);
                 }
                 catch (ProtocolViolationException ex)
                 {
@@ -161,7 +159,6 @@ namespace Microsoft.Jupyter.Core
         public event Action<Message> KernelInfoRequest;
         public event Action<Message> ExecuteRequest;
         public event Action<Message> ShutdownRequest;
-        public event Action<Message> CustomRequest;
 
         protected virtual void Dispose(bool disposing)
         {
