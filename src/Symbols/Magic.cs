@@ -13,7 +13,7 @@ namespace Microsoft.Jupyter.Core
     /// </summary>
     /// <remarks>
     ///      Each magic command method must have the signature
-    ///      <c>ExecuteResult (string, IChannel)</c>, similar to
+    ///      <c>ExecutionResult (string, IChannel)</c>, similar to
     ///      <ref>BaseEngine.ExecuteMundane</ref>.
     /// </remarks>
     [System.AttributeUsage(System.AttributeTargets.Method)]

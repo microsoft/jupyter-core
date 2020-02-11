@@ -3,6 +3,11 @@
 
 namespace Microsoft.Jupyter.Core
 {
+    public interface IUpdatableDisplay
+    {
+        void Update(object displayable);
+    }
+
     /// <summary>
     ///      Specifies a display channel between a Jupyter kernel and its clients
     ///      that can be used for printing to streams and for displaying
@@ -27,5 +32,13 @@ namespace Microsoft.Jupyter.Core
         /// </summary>
         /// <param name="displayable">The object to be displayed. Cannot be null.</param>
         void Display(object displayable);
+
+        /// <summary>
+        ///     Displays an object using this display channel and allows for the
+        ///     object to be updated with future calls.
+        /// </summary>
+        /// <param name="displayable">The object to be displayed. Cannot be null.</param>
+        /// <returns>An object that can be used to update the display.</returns>
+        IUpdatableDisplay DisplayUpdatable(object displayable);
     }
 }
