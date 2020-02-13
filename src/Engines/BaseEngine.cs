@@ -63,7 +63,8 @@ namespace Microsoft.Jupyter.Core
             ///     given output.
             /// </summary>
             /// <returns>
-            ///     A display ID that can be used to update the given output.
+            ///     An object that can be used to update the display in the
+            ///     future.
             /// </returns>
             public IUpdatableDisplay DisplayUpdatable(object displayable)
             {

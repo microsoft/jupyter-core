@@ -3,8 +3,20 @@
 
 namespace Microsoft.Jupyter.Core
 {
+    /// <summary>
+    ///     Represents a display output that can be updated after it is first
+    ///     rendered (e.g.: for displaying progress of long-running tasks,
+    ///     or for providing interactivity with the user).
+    /// </summary>
     public interface IUpdatableDisplay
     {
+        /// <summary>
+        ///     Replaces any previous content rendered to this display with a
+        //      new displayable object.
+        /// </summary>
+        /// <param name="displayable">
+        ///     The object to be displayed. Cannot be null.
+        /// </param>
         void Update(object displayable);
     }
 
