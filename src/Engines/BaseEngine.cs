@@ -554,7 +554,7 @@ namespace Microsoft.Jupyter.Core
             return symbol != null;
         }
 
-        /// <summmary>
+        /// <summary>
         ///      Returns <c>true</c> if a given input is a request for help
         ///      on a symbol. If this method returns true, then <c>symbol</c>
         ///      will be populated with the resolution of the symbol targeted

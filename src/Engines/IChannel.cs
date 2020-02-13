@@ -12,7 +12,7 @@ namespace Microsoft.Jupyter.Core
     {
         /// <summary>
         ///     Replaces any previous content rendered to this display with a
-        //      new displayable object.
+        ///     new displayable object.
         /// </summary>
         /// <param name="displayable">
         ///     The object to be displayed. Cannot be null.
