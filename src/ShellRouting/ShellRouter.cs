@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -27,6 +29,8 @@ namespace Microsoft.Jupyter.Core
             ILogger<ShellRouter> logger
         )
         {
+            if (services == null) { throw new ArgumentNullException(nameof(services)); }
+            if (logger == null) { throw new ArgumentNullException(nameof(logger)); }
             this.logger = logger;
             this.services = services;
 
