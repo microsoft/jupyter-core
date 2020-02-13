@@ -22,7 +22,8 @@ namespace Microsoft.Jupyter.Core
         {
             serviceCollection
                 .AddSingleton<IHeartbeatServer, HeartbeatServer>()
-                .AddSingleton<IShellServer, ShellServer>();
+                .AddSingleton<IShellServer, ShellServer>()
+                .AddSingleton<IShellRouter, ShellRouter>();
 
             return serviceCollection;
         }
