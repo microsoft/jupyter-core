@@ -26,6 +26,22 @@ namespace Microsoft.Jupyter.Core
     /// </summary>
     public abstract class BaseEngine : IExecutionEngine
     {
+        private class UpdatableDisplay : IUpdatableDisplay
+        {
+            private ExecutionChannel channel;
+            private string displayId;
+
+            public UpdatableDisplay(ExecutionChannel channel, string displayId)
+            {
+                this.channel = channel;
+                this.displayId = displayId;
+            }
+
+            public void Update(object displayable)
+            {
+                channel.UpdateDisplay(displayable, displayId);
+            }
+        }
 
         private class ExecutionChannel : IChannel
         {
@@ -40,6 +56,33 @@ namespace Microsoft.Jupyter.Core
             public void Display(object displayable)
             {
                 engine.WriteDisplayData(parent, displayable);
+            }
+
+            /// <summary>
+            ///     Displays a given object, allowing for future updates to the
+            ///     given output.
+            /// </summary>
+            /// <returns>
+            ///     An object that can be used to update the display in the
+            ///     future.
+            /// </returns>
+            public IUpdatableDisplay DisplayUpdatable(object displayable)
+            {
+                var transient = new TransientDisplayData
+                {
+                    DisplayId = Guid.NewGuid().ToString()
+                };
+                engine.WriteDisplayData(parent, displayable, transient);
+                return new UpdatableDisplay(this, transient.DisplayId);
+            }
+
+            public void UpdateDisplay(object displayable, string displayId)
+            {
+                var transient = new TransientDisplayData
+                {
+                    DisplayId = displayId
+                };
+                engine.WriteDisplayData(parent, displayable, transient, isUpdate: true);
             }
 
             public void Stderr(string message)
@@ -316,7 +359,7 @@ namespace Microsoft.Jupyter.Core
             }
         }
 
-        private void WriteDisplayData(Message parent, object displayable)
+        private void WriteDisplayData(Message parent, object displayable, TransientDisplayData transient = null, bool isUpdate = false)
         {
             try
             {
@@ -328,13 +371,15 @@ namespace Microsoft.Jupyter.Core
                     {
                         Header = new MessageHeader
                         {
-                            MessageType = "display_data"
+                            MessageType = isUpdate
+                                          ? "update_display_data"
+                                          : "display_data"
                         },
                         Content = new DisplayDataContent
                         {
                             Data = serialized.Data,
                             Metadata = serialized.Metadata,
-                            Transient = null
+                            Transient = transient
                         }
                     }.AsReplyTo(parent)
                 );
@@ -509,7 +554,7 @@ namespace Microsoft.Jupyter.Core
             return symbol != null;
         }
 
-        /// <summmary>
+        /// <summary>
         ///      Returns <c>true</c> if a given input is a request for help
         ///      on a symbol. If this method returns true, then <c>symbol</c>
         ///      will be populated with the resolution of the symbol targeted

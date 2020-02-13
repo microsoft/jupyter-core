@@ -20,7 +20,7 @@ namespace Microsoft.Jupyter.Core
     public class ShellRouter : IShellRouter
     {
         private readonly IDictionary<string, Action<Message>> shellHandlers = new Dictionary<string, Action<Message>>();
-        private Action<Message> fallback;
+        private Action<Message>? fallback;
         private readonly ILogger<ShellRouter> logger;
         private IServiceProvider services;
 
@@ -44,7 +44,7 @@ namespace Microsoft.Jupyter.Core
             (
                 shellHandlers.TryGetValue(message.Header.MessageType, out var handler)
                 ? handler : fallback
-            )(message);
+            )?.Invoke(message);
 
         public void RegisterHandler(string messageType, Action<Message> handler)
         {

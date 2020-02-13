@@ -4,6 +4,23 @@
 namespace Microsoft.Jupyter.Core
 {
     /// <summary>
+    ///     Represents a display output that can be updated after it is first
+    ///     rendered (e.g.: for displaying progress of long-running tasks,
+    ///     or for providing interactivity with the user).
+    /// </summary>
+    public interface IUpdatableDisplay
+    {
+        /// <summary>
+        ///     Replaces any previous content rendered to this display with a
+        ///     new displayable object.
+        /// </summary>
+        /// <param name="displayable">
+        ///     The object to be displayed. Cannot be null.
+        /// </param>
+        void Update(object displayable);
+    }
+
+    /// <summary>
     ///      Specifies a display channel between a Jupyter kernel and its clients
     ///      that can be used for printing to streams and for displaying
     ///      rich data.
@@ -27,5 +44,13 @@ namespace Microsoft.Jupyter.Core
         /// </summary>
         /// <param name="displayable">The object to be displayed. Cannot be null.</param>
         void Display(object displayable);
+
+        /// <summary>
+        ///     Displays an object using this display channel and allows for the
+        ///     object to be updated with future calls.
+        /// </summary>
+        /// <param name="displayable">The object to be displayed. Cannot be null.</param>
+        /// <returns>An object that can be used to update the display.</returns>
+        IUpdatableDisplay DisplayUpdatable(object displayable);
     }
 }
