@@ -25,6 +25,7 @@ namespace Microsoft.Jupyter.Core.Protocol
         {
             ProtocolVersion = "5.2.0";
             Id = Guid.NewGuid().ToString();
+            Username = Environment.UserName;
         }
 
         [JsonProperty("msg_id")]
@@ -65,7 +66,7 @@ namespace Microsoft.Jupyter.Core.Protocol
         // FIXME: make not just an object.
         public MessageContent Content { get; set; }
 
-        internal Message AsReplyTo(Message parent)
+        public Message AsReplyTo(Message parent)
         {
             // No parent, just return
             if (parent == null) return this;

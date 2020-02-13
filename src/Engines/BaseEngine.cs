@@ -103,7 +103,7 @@ namespace Microsoft.Jupyter.Core
 
         /// <summary>
         /// This event is triggered when a magic command is executed. Magic commands are typically
-        /// identified by symbols that is pre-fixed with '%' (like <c>%history</c>).
+        /// identified by symbol    s that is pre-fixed with '%' (like <c>%history</c>).
         /// </summary>
         public event EventHandler<ExecutedEventArgs> MagicExecuted;
 
@@ -143,7 +143,8 @@ namespace Microsoft.Jupyter.Core
         public BaseEngine(
                 IShellServer shell,
                 IOptions<KernelContext> context,
-                ILogger logger)
+                ILogger logger
+        )
         {
             ExecutionCount = 0;
             this.ShellServer = shell;
