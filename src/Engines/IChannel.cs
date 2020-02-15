@@ -21,6 +21,25 @@ namespace Microsoft.Jupyter.Core
     }
 
     /// <summary>
+    ///      Provided as a backwards compatability shim for implementations of
+    ///      IChannel that do not support updatable display.
+    /// </summary>
+    internal class UpdatableDisplayFallback : IUpdatableDisplay
+    {
+        private readonly IChannel channel;
+
+        public UpdatableDisplayFallback(IChannel channel)
+        {
+            this.channel = channel;
+        }
+
+        public void Update(object displayable)
+        {
+            channel.Display(displayable);
+        }
+    }
+
+    /// <summary>
     ///      Specifies a display channel between a Jupyter kernel and its clients
     ///      that can be used for printing to streams and for displaying
     ///      rich data.
@@ -51,6 +70,10 @@ namespace Microsoft.Jupyter.Core
         /// </summary>
         /// <param name="displayable">The object to be displayed. Cannot be null.</param>
         /// <returns>An object that can be used to update the display.</returns>
-        IUpdatableDisplay DisplayUpdatable(object displayable);
+        public IUpdatableDisplay DisplayUpdatable(object displayable)
+        {
+            this.Display(displayable);
+            return new UpdatableDisplayFallback(this);
+        }
     }
 }
