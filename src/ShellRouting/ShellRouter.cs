@@ -6,6 +6,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Jupyter.Core.Protocol;
@@ -19,8 +20,9 @@ namespace Microsoft.Jupyter.Core
     /// </summary>
     public class ShellRouter : IShellRouter
     {
-        private readonly IDictionary<string, Action<Message>> shellHandlers = new Dictionary<string, Action<Message>>();
-        private Action<Message>? fallback;
+        private readonly IDictionary<string, Func<Message, Task>> shellHandlers
+            = new Dictionary<string, Func<Message, Task>>();
+        private Func<Message, Task>? fallback;
         private readonly ILogger<ShellRouter> logger;
         private IServiceProvider services;
 
@@ -35,23 +37,30 @@ namespace Microsoft.Jupyter.Core
             this.services = services;
 
             // Set a default fallback action.
-            RegisterFallback(message =>
-                logger.LogWarning("Unrecognized custom shell message of type {Type}: {Message}", message.Header.MessageType, message)
+            RegisterFallback(async message =>
+                logger.LogWarning(
+                    "Unrecognized custom shell message of type {Type}: {Message}",
+                    message.Header.MessageType,
+                    message
+                )
             );
         }
 
-        public void Handle(Message message) =>
-            (
+        public async Task HandleAsync(Message message)
+        {
+            var task = (
                 shellHandlers.TryGetValue(message.Header.MessageType, out var handler)
                 ? handler : fallback
             )?.Invoke(message);
+            if (task != null) await task;
+        }
 
-        public void RegisterHandler(string messageType, Action<Message> handler)
+        public void RegisterHandler(string messageType, Func<Message, Task> handler)
         {
             shellHandlers[messageType] = handler;
         }
 
-        public void RegisterFallback(Action<Message> fallback) =>
+        public void RegisterFallback(Func<Message, Task> fallback) =>
             this.fallback = fallback;
 
         public void RegisterHandlers<TAssembly>()

@@ -9,8 +9,6 @@ namespace Microsoft.Jupyter.Core
     {
         event Action<Message> KernelInfoRequest;
 
-        event Action<Message> ExecuteRequest;
-
         event Action<Message> ShutdownRequest;
 
         void SendShellMessage(Message message);

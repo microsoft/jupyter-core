@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 using Newtonsoft.Json;
 
 namespace Microsoft.Jupyter.Core
@@ -55,7 +56,7 @@ namespace Microsoft.Jupyter.Core
         ///      user.
         /// </summary>
         [JsonIgnore]
-        public Func<string, IChannel, ExecutionResult> Execute { get; set; }
+        public Func<string, IChannel, Task<ExecutionResult>> Execute { get; set; }
     }
 
     /// <summary>
@@ -116,7 +117,7 @@ namespace Microsoft.Jupyter.Core
                         {
                             try
                             {
-                                return (ExecutionResult)(method.Invoke(engine, new object[] { input, channel }));
+                                return (Task<ExecutionResult>)(method.Invoke(engine, new object[] { input, channel }));
                             } 
                             catch (TargetInvocationException e)
                             {

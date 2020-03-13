@@ -9,6 +9,7 @@ using MoonSharp.Interpreter.REPL;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using System.Threading.Tasks;
 
 namespace Microsoft.Jupyter.Core
 {
@@ -20,9 +21,10 @@ namespace Microsoft.Jupyter.Core
 
         public MoonEngine(
             IShellServer shell,
+            IShellRouter router,
             IOptions<KernelContext> context,
             ILogger<MoonEngine> logger
-        ) : base(shell, context, logger)
+        ) : base(shell, router, context, logger)
         {
             RegisterJsonEncoder(
                 new DynValueConverter()
@@ -45,7 +47,7 @@ namespace Microsoft.Jupyter.Core
             interp = new ReplInterpreter(script);
         }
 
-        public override ExecutionResult ExecuteMundane(string input, IChannel channel)
+        public override async Task<ExecutionResult> ExecuteMundane(string input, IChannel channel)
         {
             var oldAction = printFn;
             printFn = channel.Stdout;
