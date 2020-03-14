@@ -143,7 +143,11 @@ namespace Microsoft.Jupyter.Core
 
                     // Get a service that can handle the message type and
                     // dispatch.
-                    Task.Run(() => router.HandleAsync(nextMessage));
+                    var task = router.Handle(nextMessage);
+
+                    // If the handler requires additional processing, delegate
+                    // that to a background thread.
+                    if (task != null) Task.Run(() => task);
                 }
                 catch (ProtocolViolationException ex)
                 {

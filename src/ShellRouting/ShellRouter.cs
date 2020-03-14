@@ -20,9 +20,9 @@ namespace Microsoft.Jupyter.Core
     /// </summary>
     public class ShellRouter : IShellRouter
     {
-        private readonly IDictionary<string, Func<Message, Task>> shellHandlers
-            = new Dictionary<string, Func<Message, Task>>();
-        private Func<Message, Task>? fallback;
+        private readonly IDictionary<string, Func<Message, Task?>> shellHandlers
+            = new Dictionary<string, Func<Message, Task?>>();
+        private Func<Message, Task?>? fallback;
         private readonly ILogger<ShellRouter> logger;
         private IServiceProvider services;
 
@@ -46,21 +46,19 @@ namespace Microsoft.Jupyter.Core
             );
         }
 
-        public async Task HandleAsync(Message message)
-        {
-            var task = (
+        public Task? Handle(Message message) =>
+            (
                 shellHandlers.TryGetValue(message.Header.MessageType, out var handler)
                 ? handler : fallback
             )?.Invoke(message);
-            if (task != null) await task;
-        }
 
-        public void RegisterHandler(string messageType, Func<Message, Task> handler)
+        public void RegisterHandler(string messageType, Func<Message, Task?> handler)
         {
             shellHandlers[messageType] = handler;
         }
 
-        public void RegisterFallback(Func<Message, Task> fallback) =>
+        /// <inheritdoc />
+        public void RegisterFallback(Func<Message, Task?> fallback) =>
             this.fallback = fallback;
 
         public void RegisterHandlers<TAssembly>()
