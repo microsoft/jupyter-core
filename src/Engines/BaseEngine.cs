@@ -141,7 +141,7 @@ namespace Microsoft.Jupyter.Core
         private Dictionary<string, Stack<IResultEncoder>> serializers = new Dictionary<string, Stack<IResultEncoder>>();
         private List<ISymbolResolver> resolvers = new List<ISymbolResolver>();
 
-        private readonly Stack<Task<ExecutionResult>> executionQueue = new Stack<Task<ExecutionResult>>();
+        private readonly Stack<Lazy<Task<ExecutionResult?>>> executionQueue = new Stack<Lazy<Task<ExecutionResult?>>>();
 
         /// <summary>
         /// This event is triggered when a non-magic cell is executed.
@@ -502,10 +502,10 @@ namespace Microsoft.Jupyter.Core
             return engineResponse;
         }
 
-        protected async Task<bool> AwaitPreviousTask(Task<ExecutionResult> previousTask, Message message)
+        protected async Task<bool> AwaitPreviousTask(Task<ExecutionResult?> previousTask, Message message)
         {
             var previousResult = await previousTask;
-            if (previousResult.Status != ExecuteStatus.Ok)
+            if (previousResult == null || previousResult.Value.Status != ExecuteStatus.Ok)
             {
                 // The previous call failed, so abort here and let the
                 // shell server know.
@@ -518,7 +518,7 @@ namespace Microsoft.Jupyter.Core
                         Content = new ExecuteReplyContent
                         {
                             ExecuteStatus = ExecuteStatus.Abort,
-                            ExecutionCount = this.ExecutionCount
+                            ExecutionCount = null
                         },
                         Header = new MessageHeader
                         {
@@ -580,16 +580,19 @@ namespace Microsoft.Jupyter.Core
             // Otherwise, we add a new task that waits for the previous task
             // and aborts if it fails.
                 this.Logger.LogDebug($"Asked to execute code:\n{((ExecuteRequestContent)message.Content).Code}");
-                Task<ExecutionResult>? previousTask;
-                Task<ExecutionResult>? currentExecutionTask = null;
+                Task<ExecutionResult?>? previousTask;
+                Lazy<Task<ExecutionResult?>>? currentExecutionTask = null;
                 
-                async Task<ExecutionResult> ExecuteCurrent()
+                async Task<ExecutionResult?> ExecuteCurrent()
                 {
                     int? executionCount = null;
                 
                     if (previousTask != null)
                     {
-                        await AwaitPreviousTask(previousTask, message);
+                        if (!await AwaitPreviousTask(previousTask, message))
+                        {
+                            return null;
+                        }
                         executionCount = IncrementExecutionCount();
                     }
                     else
@@ -623,13 +626,13 @@ namespace Microsoft.Jupyter.Core
                 // and check if another cell is running.
                 lock (executionQueue)
                 {
-                    previousTask = executionQueue.Count > 0
+                    previousTask = (executionQueue.Count > 0
                                     ? executionQueue.Peek()
-                                    : null;
-                    currentExecutionTask = ExecuteCurrent();
+                                    : null)?.Value;
+                    currentExecutionTask = new Lazy<Task<ExecutionResult?>>(ExecuteCurrent);
                     executionQueue.Push(currentExecutionTask);
                 }
-                return currentExecutionTask;
+                return currentExecutionTask.Value;
         }
 
         public virtual void OnShutdownRequest(Message message)
