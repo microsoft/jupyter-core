@@ -136,18 +136,11 @@ namespace Microsoft.Jupyter.Core
 
                     // If this is our first message, we need to set the session
                     // id.
-                    if (session == null)
-                    {
-                        session = nextMessage.Header.Session;
-                    }
+                    session ??= nextMessage.Header.Session;
 
                     // Get a service that can handle the message type and
                     // dispatch.
-                    var task = router.Handle(nextMessage);
-
-                    // If the handler requires additional processing, delegate
-                    // that to a background thread.
-                    if (task != null) Task.Run(() => task);
+                    router.Handle(nextMessage);
                 }
                 catch (ProtocolViolationException ex)
                 {

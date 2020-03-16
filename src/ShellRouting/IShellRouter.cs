@@ -12,29 +12,6 @@ using Microsoft.Jupyter.Core.Protocol;
 namespace Microsoft.Jupyter.Core
 {
     /// <summary>
-    ///     Represents a class that can handle and respond to
-    ///     shell messages coming in from a client.
-    /// </summary>
-    public interface IShellHandler
-    {
-        /// <summary>
-        ///     The message type handled by this handler (e.g.: <c>kernel_info_request</c>).
-        /// </summary>
-        public string MessageType { get; }
-
-        /// <summary>
-        ///     Called by the shell server to asynchronously handle a message
-        ///     coming in from the client. Either returns <c>null</c> if no
-        ///     further handling is required, or a task that can be awaited on
-        ///     for the message to be completely handled.
-        /// </summary>
-        /// <param name="message">
-        ///     The incoming message to be handled.
-        /// </param>
-        public Task? BeginHandlingMessage(Message message);
-    }
-
-    /// <summary>
     ///     Represents a class that can be used to route incoming shell
     ///     messages to appropriate handlers.
     /// </summary>
@@ -69,6 +46,11 @@ namespace Microsoft.Jupyter.Core
         /// </example>
         public void RegisterHandler(string messageType, Func<Message, Task?> handler);
 
+        public void RegisterHandler<THandler>(IServiceProvider serviceProvider) =>
+            RegisterHandler(
+                ActivatorUtilities.CreateInstance(serviceProvider, typeof(THandler))
+            );
+
         /// <summary>
         ///     Registers a handler that can be used to handle a
         ///     particular message type.
@@ -80,7 +62,7 @@ namespace Microsoft.Jupyter.Core
         ///     message type to be handled.
         /// </param>
         public void RegisterHandler(IShellHandler handler) =>
-            RegisterHandler(handler.MessageType, handler.BeginHandlingMessage);
+            RegisterHandler(handler.MessageType, handler.HandleAsync);
 
         /// <summary>
         ///     Registers an action to be used to handle messages

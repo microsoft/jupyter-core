@@ -131,17 +131,9 @@ namespace Microsoft.Jupyter.Core
             public TimeSpan Duration { get; }
         }
 
-        /// <summary>
-        ///      The number of cells that have been executed since the start of
-        ///      this engine. Used by clients to typeset cell numbers, e.g.:
-        ///      <c>In[12]:</c>.
-        /// </summary>
-        public int ExecutionCount { get; protected set; }
         protected List<string> History;
         private Dictionary<string, Stack<IResultEncoder>> serializers = new Dictionary<string, Stack<IResultEncoder>>();
         private List<ISymbolResolver> resolvers = new List<ISymbolResolver>();
-
-        private readonly Stack<Lazy<Task<ExecutionResult?>>> executionQueue = new Stack<Lazy<Task<ExecutionResult?>>>();
 
         /// <summary>
         /// This event is triggered when a non-magic cell is executed.
@@ -181,6 +173,8 @@ namespace Microsoft.Jupyter.Core
         /// </summary>
         public ILogger Logger { get; }
 
+        private IServiceProvider serviceProvider;
+
         /// <summary>
         ///      Constructs an engine that communicates with a given server,
         ///      and uses a given kernel context.
@@ -193,10 +187,10 @@ namespace Microsoft.Jupyter.Core
                 IShellServer shell,
                 IShellRouter router,
                 IOptions<KernelContext> context,
-                ILogger logger
+                ILogger logger,
+                IServiceProvider serviceProvider
         )
         {
-            ExecutionCount = 0;
             this.ShellServer = shell;
             this.ShellRouter = router;
             this.Context = context.Value;
@@ -408,7 +402,7 @@ namespace Microsoft.Jupyter.Core
             this.ShellServer.KernelInfoRequest += OnKernelInfoRequest;
             this.ShellServer.ShutdownRequest += OnShutdownRequest;
             
-            this.ShellRouter.RegisterHandler("execute_request", OnExecuteRequest);
+            this.ShellRouter.RegisterHandler<ExecuteRequestHandler>(serviceProvider);
         }
 
         #endregion
@@ -446,193 +440,6 @@ namespace Microsoft.Jupyter.Core
             {
                 this.Logger?.LogError(e, "Unable to process KernelInfoRequest");
             }
-        }
-
-        protected async virtual Task<ExecutionResult> ExecutionTaskForMessage(Message message, int executionCount)
-        {
-            var engineResponse = await Execute(
-                ((ExecuteRequestContent)message.Content).Code,
-                new ExecutionChannel(this, message)
-            );
-
-            
-            // Send the engine's output as an execution result.
-            if (engineResponse.Output != null)
-            {
-                var serialized = EncodeForDisplay(engineResponse.Output);
-                this.ShellServer.SendIoPubMessage(
-                    new Message
-                    {
-                        ZmqIdentities = message.ZmqIdentities,
-                        ParentHeader = message.Header,
-                        Metadata = null,
-                        Content = new ExecuteResultContent
-                        {
-                            ExecutionCount = executionCount,
-                            Data = serialized.Data,
-                            Metadata = serialized.Metadata
-                        },
-                        Header = new MessageHeader
-                        {
-                            MessageType = "execute_result"
-                        }
-                    }
-                );
-            }
-
-            // Handle the message.
-            this.ShellServer.SendShellMessage(
-                new Message
-                {
-                    ZmqIdentities = message.ZmqIdentities,
-                    ParentHeader = message.Header,
-                    Metadata = null,
-                    Content = new ExecuteReplyContent
-                    {
-                        ExecuteStatus = engineResponse.Status,
-                        ExecutionCount = executionCount
-                    },
-                    Header = new MessageHeader
-                    {
-                        MessageType = "execute_reply"
-                    }
-                }
-            );
-
-            return engineResponse;
-        }
-
-        protected async Task<bool> AwaitPreviousTask(Task<ExecutionResult?> previousTask, Message message)
-        {
-            var previousResult = await previousTask;
-            if (previousResult == null || previousResult.Value.Status != ExecuteStatus.Ok)
-            {
-                // The previous call failed, so abort here and let the
-                // shell server know.
-                this.ShellServer.SendShellMessage(
-                    new Message
-                    {
-                        ZmqIdentities = message.ZmqIdentities,
-                        ParentHeader = message.Header,
-                        Metadata = null,
-                        Content = new ExecuteReplyContent
-                        {
-                            ExecuteStatus = ExecuteStatus.Abort,
-                            ExecutionCount = null
-                        },
-                        Header = new MessageHeader
-                        {
-                            MessageType = "execute_reply"
-                        }
-                    }
-                );
-
-                // Finish by telling the client that we're free again.
-                this.ShellServer.SendIoPubMessage(
-                    new Message
-                    {
-                        Header = new MessageHeader
-                        {
-                            MessageType = "status"
-                        },
-                        Content = new KernelStatusContent
-                        {
-                            ExecutionState = ExecutionState.Idle
-                        }
-                    }.AsReplyTo(message)
-                );
-                return false;
-            }
-            else return true;
-        }
-
-        private void NotifyBusyStatus(Message message, ExecutionState state)
-        {
-            // Begin by sending that we're busy.
-            this.ShellServer.SendIoPubMessage(
-                new Message
-                {
-                    Header = new MessageHeader
-                    {
-                        MessageType = "status"
-                    },
-                    Content = new KernelStatusContent
-                    {
-                        ExecutionState = state
-                    }
-                }.AsReplyTo(message)
-            );
-        }
-
-        private int IncrementExecutionCount()
-        {
-            lock (this)
-            {
-                return ++this.ExecutionCount;
-            }
-        }
-
-        public virtual Task OnExecuteRequest(Message message)
-        {
-
-            // If there's nothing in the execution queue, then we execute and
-            // add that task to the queue.
-            // Otherwise, we add a new task that waits for the previous task
-            // and aborts if it fails.
-                this.Logger.LogDebug($"Asked to execute code:\n{((ExecuteRequestContent)message.Content).Code}");
-                Task<ExecutionResult?>? previousTask;
-                Lazy<Task<ExecutionResult?>>? currentExecutionTask = null;
-                
-                async Task<ExecutionResult?> ExecuteCurrent()
-                {
-                    int? executionCount = null;
-                
-                    if (previousTask != null)
-                    {
-                        if (!await AwaitPreviousTask(previousTask, message))
-                        {
-                            return null;
-                        }
-                        executionCount = IncrementExecutionCount();
-                    }
-                    else
-                    {
-                        executionCount = IncrementExecutionCount();
-                        NotifyBusyStatus(message, ExecutionState.Busy);
-                    }
-
-                    
-                    try
-                    {
-                        var result = await ExecutionTaskForMessage(message, executionCount.Value);
-                        lock (executionQueue)
-                        {
-                            executionQueue.Pop();
-                        }
-                        return result;
-                    }
-                    catch (Exception e)
-                    {
-                        this.Logger?.LogError(e, "Unable to process ExecuteRequest");
-                        return new ExecutionResult
-                        {
-                            Output = e,
-                            Status = ExecuteStatus.Error
-                        };
-                    }
-                }
-                
-                // The very first thing we need to do is lock the queue
-                // and check if another cell is running.
-                lock (executionQueue)
-                {
-                    previousTask = (executionQueue.Count > 0
-                                    ? executionQueue.Peek()
-                                    : null)?.Value;
-                    currentExecutionTask = new Lazy<Task<ExecutionResult?>>(ExecuteCurrent);
-                    executionQueue.Push(currentExecutionTask);
-                }
-                return currentExecutionTask.Value;
         }
 
         public virtual void OnShutdownRequest(Message message)
