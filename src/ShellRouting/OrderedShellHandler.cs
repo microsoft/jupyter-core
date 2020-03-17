@@ -17,6 +17,8 @@ namespace Microsoft.Jupyter.Core
     {
         private Task<TResult?>? currentTask = null;
 
+        private int taskDepth = 0;
+
         protected virtual ILogger? Logger { get; set; } = null;
 
         public abstract string MessageType { get; }
@@ -27,9 +29,15 @@ namespace Microsoft.Jupyter.Core
             Logger?.LogDebug("Handing {MessageType} with ordered shell handler.", message.Header.MessageType);
             currentTask = new Task<TResult?>((state) =>
             {
+                taskDepth++;
                 var previousTask = (Task<TResult?>?)state;
                 var previousResult = previousTask?.Result;
                 var currentResult = HandleAsync(message, previousResult).Result;
+                taskDepth--;
+                if (taskDepth == 0)
+                {
+                    currentTask = null;
+                }
                 return currentResult;
             }, currentTask);
             currentTask.Start();
