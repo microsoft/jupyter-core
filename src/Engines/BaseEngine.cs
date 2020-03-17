@@ -45,7 +45,7 @@ namespace Microsoft.Jupyter.Core
             }
         }
 
-        private class ExecutionChannel : IChannel
+        internal class ExecutionChannel : IChannel
         {
             private readonly Message parent;
             private readonly BaseEngine engine;
@@ -191,12 +191,16 @@ namespace Microsoft.Jupyter.Core
                 IServiceProvider serviceProvider
         )
         {
+            if (serviceProvider == null) { throw new ArgumentNullException(nameof(serviceProvider)); }
             this.ShellServer = shell;
             this.ShellRouter = router;
             this.Context = context.Value;
             this.Logger = logger;
+            this.serviceProvider = serviceProvider;
 
             History = new List<string>();
+
+            logger.LogDebug("Registering magic symbol resolution.");
             var magicResolver = new MagicCommandResolver(this);
             RegisterSymbolResolver(magicResolver);
 
@@ -402,7 +406,8 @@ namespace Microsoft.Jupyter.Core
             this.ShellServer.KernelInfoRequest += OnKernelInfoRequest;
             this.ShellServer.ShutdownRequest += OnShutdownRequest;
             
-            this.ShellRouter.RegisterHandler<ExecuteRequestHandler>(serviceProvider);
+            Logger.LogDebug("Registering execution handler service.");
+            this.ShellRouter.RegisterHandler(new ExecuteRequestHandler(this, serviceProvider));
         }
 
         #endregion
@@ -628,7 +633,7 @@ namespace Microsoft.Jupyter.Core
         [MagicCommand("%history",
             summary: "Displays a list of commands run so far this session."
         )]
-        public ExecutionResult ExecuteHistory(string input, IChannel channel)
+        public async Task<ExecutionResult> ExecuteHistory(string input, IChannel channel)
         {
             return History.ToExecutionResult();
         }
@@ -636,7 +641,7 @@ namespace Microsoft.Jupyter.Core
         [MagicCommand("%version",
             summary: "Displays the version numbers for various components of this kernel."
         )]
-        public ExecutionResult ExecuteVersion(string input, IChannel channel)
+        public async Task<ExecutionResult> ExecuteVersion(string input, IChannel channel)
         {
             var versions = Context.Properties.VersionTable;
             channel.Display(

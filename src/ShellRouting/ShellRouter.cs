@@ -46,11 +46,14 @@ namespace Microsoft.Jupyter.Core
             );
         }
 
-        public Task? Handle(Message message) =>
-            (
+        public Task? Handle(Message message)
+        {
+            logger.LogDebug("Handling message of type {MessageType}.", message.Header.MessageType);
+            return (
                 shellHandlers.TryGetValue(message.Header.MessageType, out var handler)
                 ? handler : fallback
             )?.Invoke(message);
+        }
 
         public void RegisterHandler(string messageType, Func<Message, Task?> handler)
         {

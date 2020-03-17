@@ -18,8 +18,9 @@ namespace Microsoft.Jupyter.Core
             IShellServer shell,
             IShellRouter router,
             IOptions<KernelContext> context,
-            ILogger<EchoEngine> logger
-        ) : base(shell, router, context, logger) { }
+            ILogger<EchoEngine> logger,
+            IServiceProvider serviceProvider
+        ) : base(shell, router, context, logger, serviceProvider) { }
 
         public override async Task<ExecutionResult> ExecuteMundane(string input, IChannel channel) =>
             (Program.ShoutOption.HasValue() ? input.ToUpper() : input).ToExecutionResult();

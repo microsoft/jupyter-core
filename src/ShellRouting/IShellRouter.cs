@@ -48,7 +48,7 @@ namespace Microsoft.Jupyter.Core
 
         public void RegisterHandler<THandler>(IServiceProvider serviceProvider) =>
             RegisterHandler(
-                ActivatorUtilities.CreateInstance(serviceProvider, typeof(THandler))
+                (IShellHandler)ActivatorUtilities.CreateInstance(serviceProvider, typeof(THandler))
             );
 
         /// <summary>

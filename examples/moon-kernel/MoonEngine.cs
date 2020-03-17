@@ -23,8 +23,9 @@ namespace Microsoft.Jupyter.Core
             IShellServer shell,
             IShellRouter router,
             IOptions<KernelContext> context,
-            ILogger<MoonEngine> logger
-        ) : base(shell, router, context, logger)
+            ILogger<MoonEngine> logger,
+            IServiceProvider serviceProvider
+        ) : base(shell, router, context, logger, serviceProvider)
         {
             RegisterJsonEncoder(
                 new DynValueConverter()

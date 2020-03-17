@@ -141,7 +141,7 @@ namespace Microsoft.Jupyter.Core
                             }
                             catch (Exception)
                             {
-                                throw new InvalidOperationException($"Invalid Magic Method for {symbolName}. Expecting a public method that takes a String and and IChannel as parameters.");
+                                throw new InvalidOperationException($"Invalid magic method for {symbolName}. Expecting a public async method that takes a String and and IChannel as parameters.");
                             }
                         }
                 };
