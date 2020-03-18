@@ -12,6 +12,7 @@ using NetMQ.Sockets;
 using Newtonsoft.Json;
 using Microsoft.Jupyter.Core.Protocol;
 using System.Net;
+using System.Threading.Tasks;
 
 namespace Microsoft.Jupyter.Core
 {
@@ -66,9 +67,8 @@ namespace Microsoft.Jupyter.Core
             this.provider = provider;
             this.router = router;
 
-            router.RegisterHandler("kernel_info_request", message => KernelInfoRequest?.Invoke(message));
-            router.RegisterHandler("execute_request", message => ExecuteRequest?.Invoke(message));
-            router.RegisterHandler("shutdown_request", message => ShutdownRequest?.Invoke(message));
+            router.RegisterHandler("kernel_info_request", async message => KernelInfoRequest?.Invoke(message));
+            router.RegisterHandler("shutdown_request", async message => ShutdownRequest?.Invoke(message));
         }
 
         public void Start()
@@ -110,7 +110,10 @@ namespace Microsoft.Jupyter.Core
                 message.Header.Session = session;
             }
             logger.LogDebug($"Sending {socketKind} message:\n\t{JsonConvert.SerializeObject(message)}");
-            socket.SendMessage(context, message);
+            lock (socket)
+            {
+                socket.SendMessage(context, message);
+            }
         }
 
         private void EventLoop(NetMQSocket socket)
@@ -133,10 +136,7 @@ namespace Microsoft.Jupyter.Core
 
                     // If this is our first message, we need to set the session
                     // id.
-                    if (session == null)
-                    {
-                        session = nextMessage.Header.Session;
-                    }
+                    session ??= nextMessage.Header.Session;
 
                     // Get a service that can handle the message type and
                     // dispatch.
@@ -157,7 +157,6 @@ namespace Microsoft.Jupyter.Core
         private bool disposedValue = false; // To detect redundant calls
 
         public event Action<Message> KernelInfoRequest;
-        public event Action<Message> ExecuteRequest;
         public event Action<Message> ShutdownRequest;
 
         protected virtual void Dispose(bool disposing)

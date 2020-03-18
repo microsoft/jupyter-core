@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 using Newtonsoft.Json;
 
 namespace Microsoft.Jupyter.Core
@@ -13,15 +14,27 @@ namespace Microsoft.Jupyter.Core
     /// </summary>
     /// <remarks>
     ///      Each magic command method must have the signature
-    ///      <c>ExecutionResult (string, IChannel)</c>, similar to
+    ///      <c>Task&lt;ExecutionResult&gt; (string, IChannel)</c>, similar to
     ///      <ref>BaseEngine.ExecuteMundane</ref>.
     /// </remarks>
     [System.AttributeUsage(System.AttributeTargets.Method)]
     public class MagicCommandAttribute : System.Attribute
     {
+        /// <summary>
+        ///      Name of the magic command represented by this method.
+        /// </summary>
         public readonly string Name;
+        
+        /// <summary>
+        ///     Documentation to be presented to the user in repsonse to a
+        ///     help command.
+        /// </summary>
         public readonly Documentation Documentation;
 
+        /// <summary>
+        ///      Constructs a new attribute that marks a given method as
+        ///      implementing a given magic command.
+        /// </summary>
         public MagicCommandAttribute(
             string name,
             string summary,
@@ -42,7 +55,10 @@ namespace Microsoft.Jupyter.Core
     /// </summary>
     public class MagicSymbol : ISymbol
     {
+        /// <inheritdoc />
         public string Name { get; set; }
+        
+        /// <inheritdoc />
         public SymbolKind Kind { get; set; }
 
         /// <summary>
@@ -55,7 +71,7 @@ namespace Microsoft.Jupyter.Core
         ///      user.
         /// </summary>
         [JsonIgnore]
-        public Func<string, IChannel, ExecutionResult> Execute { get; set; }
+        public Func<string, IChannel, Task<ExecutionResult>> Execute { get; set; }
     }
 
     /// <summary>
@@ -102,6 +118,7 @@ namespace Microsoft.Jupyter.Core
 
         }
 
+        /// <inheritdoc />
         public ISymbol Resolve(string symbolName)
         {
             if (this.methods.ContainsKey(symbolName))
@@ -116,7 +133,7 @@ namespace Microsoft.Jupyter.Core
                         {
                             try
                             {
-                                return (ExecutionResult)(method.Invoke(engine, new object[] { input, channel }));
+                                return (Task<ExecutionResult>)(method.Invoke(engine, new object[] { input, channel }));
                             } 
                             catch (TargetInvocationException e)
                             {
@@ -124,7 +141,7 @@ namespace Microsoft.Jupyter.Core
                             }
                             catch (Exception)
                             {
-                                throw new InvalidOperationException($"Invalid Magic Method for {symbolName}. Expecting a public method that takes a String and and IChannel as parameters.");
+                                throw new InvalidOperationException($"Invalid magic method for {symbolName}. Expecting a public async method that takes a String and and IChannel as parameters.");
                             }
                         }
                 };

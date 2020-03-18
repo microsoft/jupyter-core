@@ -16,6 +16,18 @@ namespace Microsoft.Jupyter.Core
     {
         public ExecuteStatus Status;
         public object Output;
+
+        public static ExecutionResult Failed => new ExecutionResult
+        {
+            Status = ExecuteStatus.Error,
+            Output = null
+        };
+
+        public static ExecutionResult Aborted => new ExecutionResult
+        {
+            Status = ExecuteStatus.Abort,
+            Output = null
+        };
     }
 
 }

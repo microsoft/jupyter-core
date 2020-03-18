@@ -176,7 +176,7 @@ namespace Microsoft.Jupyter.Core.Protocol
         public ExecuteStatus ExecuteStatus { get; set; }
 
         [JsonProperty("execution_count")]
-        public int ExecutionCount { get; set; }
+        public int? ExecutionCount { get; set; }
 
         // Don't use this! It's deprecated at the protocol level.
         [JsonProperty("payload")]

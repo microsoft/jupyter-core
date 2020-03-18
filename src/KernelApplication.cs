@@ -612,8 +612,12 @@ namespace Microsoft.Jupyter.Core
 
             // Minimally, we need to start a server for each of the heartbeat,
             // control and shell sockets.
+            var scope = logger.BeginScope("Starting kernel services");
+            logger.LogDebug("Getting heartbeat service.");
             var heartbeatServer = serviceProvider.GetService<IHeartbeatServer>();
+            logger.LogDebug("Getting shell service.");
             var shellServer = serviceProvider.GetService<IShellServer>();
+            logger.LogDebug("Getting engine service.");
             var engine = serviceProvider.GetService<IExecutionEngine>();
 
             shellServer.ShutdownRequest += OnShutdownRequest;
@@ -621,9 +625,14 @@ namespace Microsoft.Jupyter.Core
             // We start by launching a heartbeat server, which echoes whatever
             // input it gets from the client. Clients can use this to ensure
             // that the kernel is still alive and responsive.
+            logger.LogDebug("Starting engine service.");
             engine.Start();
+            logger.LogDebug("Starting heartbeat service.");
             heartbeatServer.Start();
+            logger.LogDebug("Starting shell service.");
             shellServer.Start();
+
+            scope.Dispose();
 
             KernelStarted?.Invoke(serviceProvider);
 

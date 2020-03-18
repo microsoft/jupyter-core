@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Microsoft.Jupyter.Core
 {
@@ -15,18 +16,20 @@ namespace Microsoft.Jupyter.Core
     {
         public EchoEngine(
             IShellServer shell,
+            IShellRouter router,
             IOptions<KernelContext> context,
-            ILogger<EchoEngine> logger
-        ) : base(shell, context, logger) { }
+            ILogger<EchoEngine> logger,
+            IServiceProvider serviceProvider
+        ) : base(shell, router, context, logger, serviceProvider) { }
 
-        public override ExecutionResult ExecuteMundane(string input, IChannel channel) =>
+        public override async Task<ExecutionResult> ExecuteMundane(string input, IChannel channel) =>
             (Program.ShoutOption.HasValue() ? input.ToUpper() : input).ToExecutionResult();
 
         [MagicCommand(
             "%tick",
             "Writes some ticks to demonstrate updatable display data."
         )]
-        public ExecutionResult ExecuteTick(string code, IChannel channel)
+        public async Task<ExecutionResult> ExecuteTick(string code, IChannel channel)
         {
             var tickMessage = "Tick.";
             var updatable = channel.DisplayUpdatable(tickMessage);

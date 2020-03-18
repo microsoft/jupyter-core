@@ -37,7 +37,7 @@
     <PackageReference Include="System.Net.WebSockets.Client" Version="4.3.1" />
     <PackageReference Include="System.ServiceModel.Primitives" Version="4.5.3" />
 
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0-beta2-18618-05" PrivateAssets="All"/>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All"/>
   </ItemGroup>
 
 </Project>

@@ -11,6 +11,8 @@ using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using Microsoft.Jupyter.Core.Protocol;
 using System.Diagnostics;
+using System.Threading.Tasks;
+using System.Threading;
 
 namespace Microsoft.Jupyter.Core
 {
@@ -43,7 +45,7 @@ namespace Microsoft.Jupyter.Core
             }
         }
 
-        private class ExecutionChannel : IChannel
+        internal class ExecutionChannel : IChannel
         {
             private readonly Message parent;
             private readonly BaseEngine engine;
@@ -129,12 +131,6 @@ namespace Microsoft.Jupyter.Core
             public TimeSpan Duration { get; }
         }
 
-        /// <summary>
-        ///      The number of cells that have been executed since the start of
-        ///      this engine. Used by clients to typeset cell numbers, e.g.:
-        ///      <c>In[12]:</c>.
-        /// </summary>
-        public int ExecutionCount { get; protected set; }
         protected List<string> History;
         private Dictionary<string, Stack<IResultEncoder>> serializers = new Dictionary<string, Stack<IResultEncoder>>();
         private List<ISymbolResolver> resolvers = new List<ISymbolResolver>();
@@ -162,6 +158,8 @@ namespace Microsoft.Jupyter.Core
         /// </summary>
         public IShellServer ShellServer { get; }
 
+        public IShellRouter ShellRouter { get; }
+
         /// <summary>
         ///      The context object for this engine, recording how the kernel
         ///      was invoked, and metadata about the language supported by the
@@ -175,6 +173,8 @@ namespace Microsoft.Jupyter.Core
         /// </summary>
         public ILogger Logger { get; }
 
+        private IServiceProvider serviceProvider;
+
         /// <summary>
         ///      Constructs an engine that communicates with a given server,
         ///      and uses a given kernel context.
@@ -185,16 +185,22 @@ namespace Microsoft.Jupyter.Core
         /// </remarks>
         public BaseEngine(
                 IShellServer shell,
+                IShellRouter router,
                 IOptions<KernelContext> context,
-                ILogger logger
+                ILogger logger,
+                IServiceProvider serviceProvider
         )
         {
-            ExecutionCount = 0;
+            if (serviceProvider == null) { throw new ArgumentNullException(nameof(serviceProvider)); }
             this.ShellServer = shell;
+            this.ShellRouter = router;
             this.Context = context.Value;
             this.Logger = logger;
+            this.serviceProvider = serviceProvider;
 
             History = new List<string>();
+
+            logger.LogDebug("Registering magic symbol resolution.");
             var magicResolver = new MagicCommandResolver(this);
             RegisterSymbolResolver(magicResolver);
 
@@ -398,8 +404,10 @@ namespace Microsoft.Jupyter.Core
         public virtual void Start()
         {
             this.ShellServer.KernelInfoRequest += OnKernelInfoRequest;
-            this.ShellServer.ExecuteRequest += OnExecuteRequest;
             this.ShellServer.ShutdownRequest += OnShutdownRequest;
+            
+            Logger.LogDebug("Registering execution handler service.");
+            this.ShellRouter.RegisterHandler(new ExecuteRequestHandler(this, serviceProvider));
         }
 
         #endregion
@@ -436,97 +444,6 @@ namespace Microsoft.Jupyter.Core
             catch (Exception e)
             {
                 this.Logger?.LogError(e, "Unable to process KernelInfoRequest");
-            }
-        }
-
-        public virtual void OnExecuteRequest(Message message)
-        {
-            this.Logger.LogDebug($"Asked to execute code:\n{((ExecuteRequestContent)message.Content).Code}");
-
-            try
-            {
-                // Begin by sending that we're busy.
-                this.ShellServer.SendIoPubMessage(
-                    new Message
-                    {
-                        Header = new MessageHeader
-                        {
-                            MessageType = "status"
-                        },
-                        Content = new KernelStatusContent
-                        {
-                            ExecutionState = ExecutionState.Busy
-                        }
-                    }.AsReplyTo(message)
-                );
-
-                // Run in the engine.
-                var engineResponse = Execute(
-                    ((ExecuteRequestContent)message.Content).Code,
-                    new ExecutionChannel(this, message)
-                );
-
-                // Send the engine's output as an execution result.
-                if (engineResponse.Output != null)
-                {
-                    var serialized = EncodeForDisplay(engineResponse.Output);
-                    this.ShellServer.SendIoPubMessage(
-                        new Message
-                        {
-                            ZmqIdentities = message.ZmqIdentities,
-                            ParentHeader = message.Header,
-                            Metadata = null,
-                            Content = new ExecuteResultContent
-                            {
-                                ExecutionCount = this.ExecutionCount,
-                                Data = serialized.Data,
-                                Metadata = serialized.Metadata
-                            },
-                            Header = new MessageHeader
-                            {
-                                MessageType = "execute_result"
-                            }
-                        }
-                    );
-                }
-
-                // Handle the message.
-                this.ShellServer.SendShellMessage(
-                    new Message
-                    {
-                        ZmqIdentities = message.ZmqIdentities,
-                        ParentHeader = message.Header,
-                        Metadata = null,
-                        Content = new ExecuteReplyContent
-                        {
-                            ExecuteStatus = engineResponse.Status,
-                            ExecutionCount = this.ExecutionCount
-                        },
-                        Header = new MessageHeader
-                        {
-                            MessageType = "execute_reply"
-                        }
-                    }
-                );
-
-                // Finish by telling the client that we're free again.
-                this.ShellServer.SendIoPubMessage(
-                    new Message
-                    {
-                        Header = new MessageHeader
-                        {
-                            MessageType = "status"
-                        },
-                        Content = new KernelStatusContent
-                        {
-                            ExecutionState = ExecutionState.Idle
-                        }
-                    }.AsReplyTo(message)
-                );
-            }
-            catch (Exception e)
-            {
-                this.Logger?.LogError(e, "Unable to process ExecuteRequest");
             }
         }
 
@@ -602,28 +519,25 @@ namespace Microsoft.Jupyter.Core
         /// <param name="input">the cell's content.</param>
         /// <param name="channel">the channel to generate messages or errors.</param>
         /// <returns>An <c>ExecutionResult</c> instance with the results of </returns>
-        public virtual ExecutionResult Execute(string input, IChannel channel)
+        public async virtual Task<ExecutionResult> Execute(string input, IChannel channel)
         {
-            this.ExecutionCount++;
-
             try
             {
                 this.History.Add(input);
 
                 // We first check to see if the first token is a
                 // magic command for this kernel.
-
                 if (IsHelp(input, out var helpSymbol))
                 {
-                    return ExecuteAndNotify(input, helpSymbol, channel, ExecuteHelp, HelpExecuted);
+                    return await ExecuteAndNotify(input, helpSymbol, channel, ExecuteHelp, HelpExecuted);
                 }
                 else if (IsMagic(input, out var magicSymbol))
                 {
-                    return ExecuteAndNotify(input, magicSymbol, channel, ExecuteMagic, MagicExecuted);
+                    return await ExecuteAndNotify(input, magicSymbol, channel, ExecuteMagic, MagicExecuted);
                 }
                 else
                 {
-                    return ExecuteAndNotify(input, channel, ExecuteMundane, MundaneExecuted);
+                    return await ExecuteAndNotify(input, channel, ExecuteMundane, MundaneExecuted);
                 }
             }
             catch (Exception e)
@@ -634,7 +548,7 @@ namespace Microsoft.Jupyter.Core
             }
         }
 
-        public virtual ExecutionResult ExecuteHelp(string input, ISymbol symbol, IChannel channel)
+        public virtual async Task<ExecutionResult> ExecuteHelp(string input, ISymbol symbol, IChannel channel)
         {
             if (symbol == null)
             {
@@ -647,7 +561,7 @@ namespace Microsoft.Jupyter.Core
             }
         }
 
-        public virtual ExecutionResult ExecuteMagic(string input, ISymbol symbol, IChannel channel)
+        public virtual async Task<ExecutionResult> ExecuteMagic(string input, ISymbol symbol, IChannel channel)
         {
             // We should never be called with an ISymbol that isn't a MagicSymbol,
             // since this method should only be called by using magicResolver.
@@ -658,7 +572,7 @@ namespace Microsoft.Jupyter.Core
             {
                 var parts = input.Trim().Split(new[] { ' ' }, 2);
                 var remainingInput = parts.Length > 1 ? parts[1] : "";
-                return magic.Execute(remainingInput, channel);
+                return await magic.Execute(remainingInput, channel);
             }
             else
             {
@@ -679,15 +593,15 @@ namespace Microsoft.Jupyter.Core
         ///     as the result of executing the input (e.g.: as the result typeset
         ///     as <c>Out[12]:</c> outputs).
         /// </returns>
-        public abstract ExecutionResult ExecuteMundane(string input, IChannel channel);
+        public abstract Task<ExecutionResult> ExecuteMundane(string input, IChannel channel);
 
         /// <summary>
         ///     Executes the given action with the corresponding parameters, and then triggers the given event.
         /// </summary>
-        public ExecutionResult ExecuteAndNotify(string input, IChannel channel, Func<string, IChannel, ExecutionResult> action, EventHandler<ExecutedEventArgs> evt)
+        public async Task<ExecutionResult> ExecuteAndNotify(string input, IChannel channel, Func<string, IChannel, Task<ExecutionResult>> action, EventHandler<ExecutedEventArgs> evt)
         {
             var duration = Stopwatch.StartNew();
-            var result = action(input, channel);
+            var result = await action(input, channel);
             duration.Stop();
 
             evt?.Invoke(this, new ExecutedEventArgs(null, result, duration.Elapsed));
@@ -697,10 +611,16 @@ namespace Microsoft.Jupyter.Core
         /// <summary>
         ///     Executes the given action with the corresponding parameters, and then triggers the given event.
         /// </summary>
-        public ExecutionResult ExecuteAndNotify(string input, ISymbol symbol, IChannel channel, Func<string, ISymbol, IChannel, ExecutionResult> action, EventHandler<ExecutedEventArgs> evt)
+        public async Task<ExecutionResult> ExecuteAndNotify(
+            string input,
+            ISymbol symbol,
+            IChannel channel,
+            Func<string, ISymbol, IChannel, Task<ExecutionResult>> action,
+            EventHandler<ExecutedEventArgs> evt
+        )
         {
             var duration = Stopwatch.StartNew();
-            var result = action(input, symbol, channel);
+            var result = await action(input, symbol, channel);
             duration.Stop();
 
             evt?.Invoke(this, new ExecutedEventArgs(symbol, result, duration.Elapsed));
@@ -713,7 +633,7 @@ namespace Microsoft.Jupyter.Core
         [MagicCommand("%history",
             summary: "Displays a list of commands run so far this session."
         )]
-        public ExecutionResult ExecuteHistory(string input, IChannel channel)
+        public async Task<ExecutionResult> ExecuteHistory(string input, IChannel channel)
         {
             return History.ToExecutionResult();
         }
@@ -721,7 +641,7 @@ namespace Microsoft.Jupyter.Core
         [MagicCommand("%version",
             summary: "Displays the version numbers for various components of this kernel."
         )]
-        public ExecutionResult ExecuteVersion(string input, IChannel channel)
+        public async Task<ExecutionResult> ExecuteVersion(string input, IChannel channel)
         {
             var versions = Context.Properties.VersionTable;
             channel.Display(
