@@ -48,7 +48,7 @@ Both of these commands can be implemented using the `KernelApplication` class pr
 Before we use `KernelApplication`, we need to get two pieces of code ready:
 
 - Metadata properties defining the name of our new kernel, the language supported, etc.
-- A class implementing the `IReplEngine` interface that sends code to the interpreter for our language.
+- A class implementing the `IExecutionEngine` interface that sends code to the interpreter for our language.
 
 Dealing with each in turn, make a new file called `KernelProperties.cs` with the following contents:
 
@@ -93,18 +93,29 @@ namespace Microsoft.Jupyter.Core
 }
 ```
 
-Next, let's make a new class that implements `IReplEngine`.
+Next, let's make a new class that implements `IExecutionEngine`.
 The easiest way to do this is to subclass from the `BaseEngine` abstract class.
 Make a new file called `EchoEngine.cs` and add the following code:
 
 ```csharp
 using System;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 
 namespace Microsoft.Jupyter.Core
 {
     public class EchoEngine : BaseEngine
     {
-        public override ExecutionResult ExecuteMundane(string input, Action<string> stdout, Action<string> stderr)
+        public EchoEngine(
+            IShellServer shell,
+            IShellRouter router,
+            IOptions<KernelContext> context,
+            ILogger<EchoEngine> logger,
+            IServiceProvider serviceProvider
+        ) : base(shell, router, context, logger, serviceProvider) { }
+        
+        public override async Task<ExecutionResult> ExecuteMundane(string input, IChannel channel)
         {
             return input.ToExecutionResult();
         }
@@ -119,25 +130,32 @@ The library provides the `ToExecutionResult` extension method for `string` and `
 Now that we have everything that we need to start up a kernel application, we can modify `Program.cs` as follows:
 
 ```csharp
-class Program
+using System;
+using Microsoft.Extensions.DependencyInjection;
+using static Microsoft.Jupyter.Core.Constants;
+
+namespace Microsoft.Jupyter.Core
 {
-    public static void Init(ServiceCollection serviceCollection) =>
-        serviceCollection
-            // Start a new service for the ReplEngine.
-            .AddSingleton<IReplEngine, EchoEngine>();
+    class Program
+    {
+        public static void Init(ServiceCollection serviceCollection) =>
+            serviceCollection
+                // Start a new service for the ExecutionEngine.
+                .AddSingleton<IExecutionEngine, EchoEngine>();
 
-    public static int Main(string[] args) {
-        var app = new KernelApplication(
-            PROPERTIES,
-            Init
-        );
+        public static int Main(string[] args) {
+            var app = new KernelApplication(
+                PROPERTIES,
+                Init
+            );
 
-        return app.WithDefaultCommands().Execute(args);
+            return app.WithDefaultCommands().Execute(args);
+        }
     }
 }
 ```
 
-The first method, `Init`, configures the ASP.NET Core Dependency Injection Framework to make `EchoEngine` available to any parts of our kernel that require access to an `IReplEngine`.
+The first method, `Init`, configures the ASP.NET Core Dependency Injection Framework to make `EchoEngine` available to any parts of our kernel that require access to an `IExecutionEngine`.
 In this method, we're given a `ServiceCollection` to register everything we need.
 For this kernel, we'll only need the engine itself, but a more realistic kernel may need one or more other services here, or may configure loggers and take in configuration options.
 Note that since we've added `EchoEngine` as a singleton, the entire kernel will share a single instance for its entire lifetime (typically until restarted or shutdown by a Jupyter client).
