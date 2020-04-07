@@ -25,7 +25,9 @@ namespace Microsoft.Jupyter.Core
             Icons = new Dictionary<SymbolKind, string>
             {
                 [SymbolKind.Magic] = "fa-magic",
-                [SymbolKind.Other] = "fa-terminal"
+                [SymbolKind.Callable] = "fa-terminal",
+                [SymbolKind.LocalDeclaration] = "fa-stream",
+                [SymbolKind.Other] = "fa-code"
             }.ToImmutableDictionary();
 
         public string MimeType => MimeTypes.Html;
