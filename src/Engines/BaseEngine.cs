@@ -464,7 +464,7 @@ namespace Microsoft.Jupyter.Core
             }
             else
             {
-                var parts = input.Trim().Split(new[] { ' ' }, 2);
+                var parts = input.Trim().Split(null, 2);
                 symbol = Resolve(parts[0]) as MagicSymbol;
             }
 
@@ -570,7 +570,7 @@ namespace Microsoft.Jupyter.Core
             // Which magic command do we have? Split up until the first space.
             if (symbol is MagicSymbol magic)
             {
-                var parts = input.Trim().Split(new[] { ' ' }, 2);
+                var parts = input.Trim().Split(null, 2);
                 var remainingInput = parts.Length > 1 ? parts[1] : "";
                 return await magic.Execute(remainingInput, channel);
             }
