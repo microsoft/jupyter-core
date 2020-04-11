@@ -456,19 +456,83 @@ namespace Microsoft.Jupyter.Core
 
         #region Command Parsing
 
-        public virtual bool IsMagic(string input, out ISymbol symbol)
+        private bool StartsWithMagicOrHelp(string input, out ISymbol symbol, out bool isHelp)
         {
-            if (input == null)
+            symbol = null;
+            isHelp = false;
+
+            var inputParts = input.Trim().Split(null, 2);
+            var symbolName = inputParts[0].Trim();
+            if (symbolName.StartsWith("?"))
             {
-                symbol = null;
+                symbolName = symbolName.Substring(1, symbolName.Length - 1);
+                isHelp = true;
             }
-            else
+            else if (symbolName.EndsWith("?"))
             {
-                var parts = input.Trim().Split(null, 2);
-                symbol = Resolve(parts[0]) as MagicSymbol;
+                symbolName = symbolName.Substring(0, symbolName.Length - 1);
+                isHelp = true;
+            }
+
+            if (!string.IsNullOrEmpty(symbolName))
+            {
+                symbol = Resolve(symbolName) as MagicSymbol;
             }
 
             return symbol != null;
+        }
+
+        private bool IsMagicOrHelp(string input, out ISymbol symbol, out string commandInput, out bool isHelp, out string remainingInput)
+        {
+            symbol = null;
+            isHelp = false;
+            commandInput = input;
+            remainingInput = string.Empty;
+
+            var inputLines = input?.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+            if (inputLines == null || inputLines.Length == 0)
+            {
+                return false;
+            }
+
+            // Check if the first line starts with a magic symbol.
+            if (!StartsWithMagicOrHelp(inputLines[0], out symbol, out isHelp))
+            {
+                return false;
+            }
+
+            // Look through the remaining lines until we find one that
+            // starts with a magic symbol.
+            commandInput = null;
+            for (int lineIndex = 1; lineIndex < inputLines.Length; lineIndex++)
+            {
+                if (StartsWithMagicOrHelp(inputLines[lineIndex], out _, out _))
+                {
+                    commandInput = string.Join(Environment.NewLine, inputLines.SkipLast(inputLines.Length - lineIndex));
+                    remainingInput = string.Join(Environment.NewLine, inputLines.Skip(lineIndex));
+                    break;
+                }
+            }
+
+            // If we didn't find another magic symbol, use the full input
+            // as the command input.
+            if (commandInput == null)
+            {
+                commandInput = input;
+            }
+            
+            return true;
+        }
+
+        /// <summary>
+        ///      Returns <c>true</c> if a given input is magic symbol.
+        ///      If this method returns true, then <c>symbol</c> will
+        ///      be populated with the resolution of the magic symbol.
+        /// </summary>
+        public virtual bool IsMagic(string input, out ISymbol symbol, out string commandInput, out string remainingInput)
+        {
+            return IsMagicOrHelp(input, out symbol, out commandInput, out bool isHelp, out remainingInput)
+                && !isHelp;
         }
 
         /// <summary>
@@ -481,29 +545,10 @@ namespace Microsoft.Jupyter.Core
         ///      If an input is a request for help on an invalid symbol, then
         ///      this method will return true, but <c>symbol</c> will be null.
         /// </remarks>
-        public virtual bool IsHelp(string input, out ISymbol symbol)
+        public virtual bool IsHelp(string input, out ISymbol symbol, out string commandInput, out string remainingInput)
         {
-            if (input == null)
-            {
-                symbol = null;
-            }
-            else
-            {
-                var stripped = input.Trim();
-                string symbolName = null;
-                if (stripped.StartsWith("?"))
-                {
-                    symbolName = stripped.Substring(1, stripped.Length - 1);
-                }
-                else if (stripped.EndsWith("?"))
-                {
-                    symbolName = stripped.Substring(0, stripped.Length - 1);
-                }
-
-                symbol = symbolName != null ? Resolve(symbolName) : null;
-            }
-
-            return symbol != null;
+            var isMagicOrHelp = IsMagicOrHelp(input, out symbol, out commandInput, out bool isHelp, out remainingInput);
+            return isHelp;
         }
 
         #endregion
@@ -525,20 +570,35 @@ namespace Microsoft.Jupyter.Core
             {
                 this.History.Add(input);
 
-                // We first check to see if the first token is a
-                // magic command for this kernel.
-                if (IsHelp(input, out var helpSymbol))
+                ExecutionResult result = ExecuteStatus.Ok.ToExecutionResult();
+
+                // Continue looping until we have processed all of the input
+                // or until we have a failure.
+                string currentInput = input;
+                while (result.Status == ExecuteStatus.Ok && !string.IsNullOrEmpty(currentInput))
                 {
-                    return await ExecuteAndNotify(input, helpSymbol, channel, ExecuteHelp, HelpExecuted);
+                    // We first check to see if the first token is a help or magic command for this kernel.
+                    ISymbol symbol;
+                    string commandInput, remainingInput;
+                    if (IsHelp(currentInput, out symbol, out commandInput, out remainingInput))
+                    {
+                        result = await ExecuteAndNotify(commandInput, symbol, channel, ExecuteHelp, HelpExecuted);
+                        currentInput = remainingInput;
+                    }
+                    else if (IsMagic(currentInput, out symbol, out commandInput, out remainingInput))
+                    {
+                        result = await ExecuteAndNotify(commandInput, symbol, channel, ExecuteMagic, MagicExecuted);
+                        currentInput = remainingInput;
+                    }
+                    else
+                    {
+                        result = await ExecuteAndNotify(currentInput, channel, ExecuteMundane, MundaneExecuted);
+                        currentInput = string.Empty;
+                    }
                 }
-                else if (IsMagic(input, out var magicSymbol))
-                {
-                    return await ExecuteAndNotify(input, magicSymbol, channel, ExecuteMagic, MagicExecuted);
-                }
-                else
-                {
-                    return await ExecuteAndNotify(input, channel, ExecuteMundane, MundaneExecuted);
-                }
+
+                // Return the most recently-obtained result.
+                return result;
             }
             catch (Exception e)
             {
