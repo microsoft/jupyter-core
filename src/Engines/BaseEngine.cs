@@ -461,9 +461,12 @@ namespace Microsoft.Jupyter.Core
         #region Command Parsing
 
         /// <summary>
-        ///      Returns <c>true</c> if a given input is magic symbol.
+        ///      Returns <c>true</c> if a given input is a magic symbol.
         ///      If this method returns true, then <c>symbol</c> will
-        ///      be populated with the resolution of the magic symbol.
+        ///      be populated with the resolution of the magic symbol,
+        ///      <c>commandInput</c> will be populated with the magic
+        ///      symbol and its arguments, and <c>remainingInput</c> will
+        ///      be populated with any subsequent commands in the cell.
         /// </summary>
         public virtual bool IsMagic(string input, out ISymbol symbol, out string commandInput, out string remainingInput)
         {
@@ -475,7 +478,9 @@ namespace Microsoft.Jupyter.Core
         ///      Returns <c>true</c> if a given input is a request for help
         ///      on a symbol. If this method returns true, then <c>symbol</c>
         ///      will be populated with the resolution of the symbol targeted
-        ///      for help.
+        ///      for help, <c>commandInput</c> will be populated with the help
+        ///      request and its arguments, and <c>remainingInput</c> will
+        ///      be populated with any subsequent commands in the cell.
         /// </summary>
         /// <remarks>
         ///      If an input is a request for help on an invalid symbol, then
