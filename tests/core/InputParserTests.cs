@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
+#nullable enable
+
 using System;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -11,21 +13,16 @@ namespace Microsoft.Jupyter.Core
     {
         private string[] magicSymbols = new[] { "%abc", "%def" };
 
-        public ISymbol Resolve(string symbolName)
-        {
-            if (this.magicSymbols.Contains(symbolName))
-            {
-                return new MagicSymbol
+        public ISymbol? Resolve(string symbolName) =>
+            this.magicSymbols.Contains(symbolName)
+            ? new MagicSymbol
                 {
                     Name = symbolName,
                     Documentation = new Documentation(),
                     Kind = SymbolKind.Magic,
-                    Execute = async (input, channel) => ExecutionResult.Aborted;
-                };
-            }
-
-            return null;
-        }
+                    Execute = async (input, channel) => ExecutionResult.Aborted
+                }
+            : null;
     }
 
     [TestClass]
