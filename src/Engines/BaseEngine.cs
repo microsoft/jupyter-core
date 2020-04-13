@@ -468,6 +468,20 @@ namespace Microsoft.Jupyter.Core
         ///      symbol and its arguments, and <c>remainingInput</c> will
         ///      be populated with any subsequent commands in the cell.
         /// </summary>
+        /// <example>
+        ///      If <c>input</c> contains the following cell contents:
+        ///      <code>
+        ///         %magic arg1 arg2
+        ///         %magic arg3 arg4
+        ///      </code>
+        ///      then the output parameters will be set as follows:
+        ///      <code>
+        ///         symbol = (valid reference to ISymbol)
+        ///         commandInput = "%magic arg1 arg2"
+        ///         remainingInput = "%magic arg3 arg4"
+        ///      </code>
+        ///      and the function will return <c>true</c>.
+        /// </example>
         public virtual bool IsMagic(string input, out ISymbol symbol, out string commandInput, out string remainingInput)
         {
             return this.inputParser.IsMagicOrHelp(input, out symbol, out commandInput, out bool isHelp, out remainingInput)
@@ -486,6 +500,20 @@ namespace Microsoft.Jupyter.Core
         ///      If an input is a request for help on an invalid symbol, then
         ///      this method will return true, but <c>symbol</c> will be null.
         /// </remarks>
+        /// <example>
+        ///      If <c>input</c> contains the following cell contents:
+        ///      <code>
+        ///         %magic? arg1 arg2
+        ///         %magic arg3 arg4
+        ///      </code>
+        ///      then the output parameters will be set as follows:
+        ///      <code>
+        ///         symbol = (valid reference to ISymbol)
+        ///         commandInput = "%magic? arg1 arg2"
+        ///         remainingInput = "%magic arg3 arg4"
+        ///      </code>
+        ///      and the function will return <c>true</c>.
+        /// </example>
         public virtual bool IsHelp(string input, out ISymbol symbol, out string commandInput, out string remainingInput)
         {
             var isMagicOrHelp = this.inputParser.IsMagicOrHelp(input, out symbol, out commandInput, out bool isHelp, out remainingInput);
