@@ -20,6 +20,8 @@ namespace Microsoft.Jupyter.Core
 
         public bool IsMagicOrHelp(string input, out ISymbol? symbol, out string? commandInput, out bool isHelp, out string? remainingInput)
         {
+            if (input == null) { throw new ArgumentNullException("input"); }
+
             symbol = null;
             isHelp = false;
             commandInput = input;
