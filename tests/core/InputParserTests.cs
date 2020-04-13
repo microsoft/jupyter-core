@@ -17,7 +17,7 @@ namespace Microsoft.Jupyter.Core
                     Name = symbolName,
                     Documentation = new Documentation(),
                     Kind = SymbolKind.Magic,
-                    Execute = async (input, channel) => { return ExecutionResult.Aborted; }
+                    Execute = async (input, channel) => ExecutionResult.Aborted;
                 };
             }
 
