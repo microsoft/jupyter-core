@@ -34,7 +34,7 @@ namespace Microsoft.Jupyter.Core
             var input = string.Empty;
 
             var inputParser = new InputParser(new MockSymbolResolver());
-            var isMagicOrHelp = inputParser.IsMagicOrHelp(input, out ISymbol symbol, out string commandInput, out bool isHelp, out string remainingInput);
+            var isMagicOrHelp = inputParser.IsMagicOrHelp(input, out ISymbol? symbol, out string? commandInput, out bool isHelp, out string? remainingInput);
             
             Assert.IsFalse(isMagicOrHelp);
             Assert.IsNull(symbol);
@@ -56,7 +56,7 @@ namespace Microsoft.Jupyter.Core
             foreach (var input in inputs)
             {
                 var inputParser = new InputParser(new MockSymbolResolver());
-                var isMagicOrHelp = inputParser.IsMagicOrHelp(input, out ISymbol symbol, out string commandInput, out bool isHelp, out string remainingInput);
+                var isMagicOrHelp = inputParser.IsMagicOrHelp(input, out ISymbol? symbol, out string? commandInput, out bool isHelp, out string? remainingInput);
                 
                 Assert.IsFalse(isMagicOrHelp, $"Input:\n{input}");
                 Assert.IsNull(symbol, $"Input:\n{input}");
@@ -82,7 +82,7 @@ namespace Microsoft.Jupyter.Core
             foreach (var input in inputs)
             {
                 var inputParser = new InputParser(new MockSymbolResolver());
-                var isMagicOrHelp = inputParser.IsMagicOrHelp(input, out ISymbol symbol, out string commandInput, out bool isHelp, out string remainingInput);
+                var isMagicOrHelp = inputParser.IsMagicOrHelp(input, out ISymbol? symbol, out string? commandInput, out bool isHelp, out string? remainingInput);
                 
                 Assert.IsTrue(isMagicOrHelp, $"Input:\n{input}");
                 Assert.IsNotNull(symbol, $"Input:\n{input}");
@@ -104,7 +104,7 @@ namespace Microsoft.Jupyter.Core
             foreach (var input in inputs)
             {
                 var inputParser = new InputParser(new MockSymbolResolver());
-                var isMagicOrHelp = inputParser.IsMagicOrHelp(input, out ISymbol symbol, out string commandInput, out bool isHelp, out string remainingInput);
+                var isMagicOrHelp = inputParser.IsMagicOrHelp(input, out ISymbol? symbol, out string? commandInput, out bool isHelp, out string? remainingInput);
                 
                 Assert.IsTrue(isMagicOrHelp, $"Input:\n{input}");
                 Assert.IsNotNull(symbol, $"Input:\n{input}");
@@ -121,7 +121,7 @@ namespace Microsoft.Jupyter.Core
 
             // simple case
             var input = "%abc\n%def";
-            var isMagicOrHelp = inputParser.IsMagicOrHelp(input, out ISymbol symbol, out string commandInput, out bool isHelp, out string remainingInput);
+            var isMagicOrHelp = inputParser.IsMagicOrHelp(input, out ISymbol? symbol, out string? commandInput, out bool isHelp, out string? remainingInput);
                 
             Assert.IsTrue(isMagicOrHelp, $"Input:\n{input}");
             Assert.IsNotNull(symbol, $"Input:\n{input}");
@@ -146,8 +146,8 @@ namespace Microsoft.Jupyter.Core
             Assert.IsTrue(isMagicOrHelp, $"Input:\n{input}");
             Assert.IsNotNull(symbol, $"Input:\n{input}");
             Assert.IsFalse(isHelp, $"Input:\n{input}");
-            Assert.IsTrue(commandInput.TrimStart().StartsWith("%abc"), $"Input:\n{input}");
-            Assert.IsTrue(remainingInput.TrimStart().StartsWith("%def"), $"Input:\n{input}");
+            Assert.IsTrue(commandInput != null && commandInput.TrimStart().StartsWith("%abc"), $"Input:\n{input}");
+            Assert.IsTrue(remainingInput != null && remainingInput.TrimStart().StartsWith("%def"), $"Input:\n{input}");
         }
     }
 }

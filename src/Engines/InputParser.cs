@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,7 +18,7 @@ namespace Microsoft.Jupyter.Core
             this.Resolver = resolver;
         }
 
-        public bool IsMagicOrHelp(string input, out ISymbol symbol, out string commandInput, out bool isHelp, out string remainingInput)
+        public bool IsMagicOrHelp(string input, out ISymbol? symbol, out string? commandInput, out bool isHelp, out string? remainingInput)
         {
             symbol = null;
             isHelp = false;
@@ -59,7 +61,7 @@ namespace Microsoft.Jupyter.Core
             return true;
         }
 
-        private bool StartsWithMagicOrHelp(string input, out ISymbol symbol, out bool isHelp)
+        private bool StartsWithMagicOrHelp(string input, out ISymbol? symbol, out bool isHelp)
         {
             symbol = null;
             isHelp = false;
