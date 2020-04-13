@@ -26,7 +26,7 @@ namespace Microsoft.Jupyter.Core
     ///      encoders, and can override communication with the various socket
     ///      servers that make up the kernel.
     /// </summary>
-    public abstract class BaseEngine : IExecutionEngine
+    public abstract class BaseEngine : IExecutionEngine, ISymbolResolver
     {
         private class UpdatableDisplay : IUpdatableDisplay
         {
@@ -173,6 +173,8 @@ namespace Microsoft.Jupyter.Core
         /// </summary>
         public ILogger Logger { get; }
 
+        private InputParser inputParser;
+
         private IServiceProvider serviceProvider;
 
         /// <summary>
@@ -199,6 +201,8 @@ namespace Microsoft.Jupyter.Core
             this.serviceProvider = serviceProvider;
 
             History = new List<string>();
+
+            this.inputParser = new InputParser(this);
 
             logger.LogDebug("Registering magic symbol resolution.");
             var magicResolver = new MagicCommandResolver(this);
@@ -456,74 +460,6 @@ namespace Microsoft.Jupyter.Core
 
         #region Command Parsing
 
-        private bool StartsWithMagicOrHelp(string input, out ISymbol symbol, out bool isHelp)
-        {
-            symbol = null;
-            isHelp = false;
-
-            var inputParts = input.Trim().Split(null, 2);
-            var symbolName = inputParts[0].Trim();
-            if (symbolName.StartsWith("?"))
-            {
-                symbolName = symbolName.Substring(1, symbolName.Length - 1);
-                isHelp = true;
-            }
-            else if (symbolName.EndsWith("?"))
-            {
-                symbolName = symbolName.Substring(0, symbolName.Length - 1);
-                isHelp = true;
-            }
-
-            if (!string.IsNullOrEmpty(symbolName))
-            {
-                symbol = Resolve(symbolName) as MagicSymbol;
-            }
-
-            return symbol != null;
-        }
-
-        private bool IsMagicOrHelp(string input, out ISymbol symbol, out string commandInput, out bool isHelp, out string remainingInput)
-        {
-            symbol = null;
-            isHelp = false;
-            commandInput = input;
-            remainingInput = string.Empty;
-
-            var inputLines = input?.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
-            if (inputLines == null || inputLines.Length == 0)
-            {
-                return false;
-            }
-
-            // Check if the first line starts with a magic symbol.
-            if (!StartsWithMagicOrHelp(inputLines[0], out symbol, out isHelp))
-            {
-                return false;
-            }
-
-            // Look through the remaining lines until we find one that
-            // starts with a magic symbol.
-            commandInput = null;
-            for (int lineIndex = 1; lineIndex < inputLines.Length; lineIndex++)
-            {
-                if (StartsWithMagicOrHelp(inputLines[lineIndex], out _, out _))
-                {
-                    commandInput = string.Join(Environment.NewLine, inputLines.SkipLast(inputLines.Length - lineIndex));
-                    remainingInput = string.Join(Environment.NewLine, inputLines.Skip(lineIndex));
-                    break;
-                }
-            }
-
-            // If we didn't find another magic symbol, use the full input
-            // as the command input.
-            if (commandInput == null)
-            {
-                commandInput = input;
-            }
-            
-            return true;
-        }
-
         /// <summary>
         ///      Returns <c>true</c> if a given input is magic symbol.
         ///      If this method returns true, then <c>symbol</c> will
@@ -531,7 +467,7 @@ namespace Microsoft.Jupyter.Core
         /// </summary>
         public virtual bool IsMagic(string input, out ISymbol symbol, out string commandInput, out string remainingInput)
         {
-            return IsMagicOrHelp(input, out symbol, out commandInput, out bool isHelp, out remainingInput)
+            return this.inputParser.IsMagicOrHelp(input, out symbol, out commandInput, out bool isHelp, out remainingInput)
                 && !isHelp;
         }
 
@@ -547,7 +483,7 @@ namespace Microsoft.Jupyter.Core
         /// </remarks>
         public virtual bool IsHelp(string input, out ISymbol symbol, out string commandInput, out string remainingInput)
         {
-            var isMagicOrHelp = IsMagicOrHelp(input, out symbol, out commandInput, out bool isHelp, out remainingInput);
+            var isMagicOrHelp = this.inputParser.IsMagicOrHelp(input, out symbol, out commandInput, out bool isHelp, out remainingInput);
             return isHelp;
         }
 
