@@ -26,7 +26,7 @@ namespace Microsoft.Jupyter.Core
     ///      encoders, and can override communication with the various socket
     ///      servers that make up the kernel.
     /// </summary>
-    public abstract class BaseEngine : IExecutionEngine
+    public abstract class BaseEngine : IExecutionEngine, ISymbolResolver
     {
         private class UpdatableDisplay : IUpdatableDisplay
         {
@@ -173,6 +173,8 @@ namespace Microsoft.Jupyter.Core
         /// </summary>
         public ILogger Logger { get; }
 
+        private InputParser inputParser;
+
         private IServiceProvider serviceProvider;
 
         /// <summary>
@@ -199,6 +201,8 @@ namespace Microsoft.Jupyter.Core
             this.serviceProvider = serviceProvider;
 
             History = new List<string>();
+
+            this.inputParser = new InputParser(this);
 
             logger.LogDebug("Registering magic symbol resolution.");
             var magicResolver = new MagicCommandResolver(this);
@@ -456,54 +460,64 @@ namespace Microsoft.Jupyter.Core
 
         #region Command Parsing
 
-        public virtual bool IsMagic(string input, out ISymbol symbol)
+        /// <summary>
+        ///      Returns <c>true</c> if a given input is a magic symbol.
+        ///      If this method returns true, then <c>symbol</c> will
+        ///      be populated with the resolution of the magic symbol,
+        ///      <c>commandInput</c> will be populated with the magic
+        ///      symbol and its arguments, and <c>remainingInput</c> will
+        ///      be populated with any subsequent commands in the cell.
+        /// </summary>
+        /// <example>
+        ///      If <c>input</c> contains the following cell contents:
+        ///      <code>
+        ///         %magic arg1 arg2
+        ///         %magic arg3 arg4
+        ///      </code>
+        ///      then the output parameters will be set as follows:
+        ///      <code>
+        ///         symbol = (valid reference to ISymbol)
+        ///         commandInput = "%magic arg1 arg2"
+        ///         remainingInput = "%magic arg3 arg4"
+        ///      </code>
+        ///      and the function will return <c>true</c>.
+        /// </example>
+        public virtual bool IsMagic(string input, out ISymbol symbol, out string commandInput, out string remainingInput)
         {
-            if (input == null)
-            {
-                symbol = null;
-            }
-            else
-            {
-                var parts = input.Trim().Split(new[] { ' ' }, 2);
-                symbol = Resolve(parts[0]) as MagicSymbol;
-            }
-
-            return symbol != null;
+            return this.inputParser.IsMagicOrHelp(input, out symbol, out commandInput, out bool isHelp, out remainingInput)
+                && !isHelp;
         }
 
         /// <summary>
         ///      Returns <c>true</c> if a given input is a request for help
         ///      on a symbol. If this method returns true, then <c>symbol</c>
         ///      will be populated with the resolution of the symbol targeted
-        ///      for help.
+        ///      for help, <c>commandInput</c> will be populated with the help
+        ///      request and its arguments, and <c>remainingInput</c> will
+        ///      be populated with any subsequent commands in the cell.
         /// </summary>
         /// <remarks>
         ///      If an input is a request for help on an invalid symbol, then
         ///      this method will return true, but <c>symbol</c> will be null.
         /// </remarks>
-        public virtual bool IsHelp(string input, out ISymbol symbol)
+        /// <example>
+        ///      If <c>input</c> contains the following cell contents:
+        ///      <code>
+        ///         %magic? arg1 arg2
+        ///         %magic arg3 arg4
+        ///      </code>
+        ///      then the output parameters will be set as follows:
+        ///      <code>
+        ///         symbol = (valid reference to ISymbol)
+        ///         commandInput = "%magic? arg1 arg2"
+        ///         remainingInput = "%magic arg3 arg4"
+        ///      </code>
+        ///      and the function will return <c>true</c>.
+        /// </example>
+        public virtual bool IsHelp(string input, out ISymbol symbol, out string commandInput, out string remainingInput)
         {
-            if (input == null)
-            {
-                symbol = null;
-            }
-            else
-            {
-                var stripped = input.Trim();
-                string symbolName = null;
-                if (stripped.StartsWith("?"))
-                {
-                    symbolName = stripped.Substring(1, stripped.Length - 1);
-                }
-                else if (stripped.EndsWith("?"))
-                {
-                    symbolName = stripped.Substring(0, stripped.Length - 1);
-                }
-
-                symbol = symbolName != null ? Resolve(symbolName) : null;
-            }
-
-            return symbol != null;
+            var isMagicOrHelp = this.inputParser.IsMagicOrHelp(input, out symbol, out commandInput, out bool isHelp, out remainingInput);
+            return isHelp;
         }
 
         #endregion
@@ -525,20 +539,35 @@ namespace Microsoft.Jupyter.Core
             {
                 this.History.Add(input);
 
-                // We first check to see if the first token is a
-                // magic command for this kernel.
-                if (IsHelp(input, out var helpSymbol))
+                ExecutionResult result = ExecuteStatus.Ok.ToExecutionResult();
+
+                // Continue looping until we have processed all of the input
+                // or until we have a failure.
+                string currentInput = input;
+                while (result.Status == ExecuteStatus.Ok && !string.IsNullOrEmpty(currentInput))
                 {
-                    return await ExecuteAndNotify(input, helpSymbol, channel, ExecuteHelp, HelpExecuted);
+                    // We first check to see if the first token is a help or magic command for this kernel.
+                    ISymbol symbol;
+                    string commandInput, remainingInput;
+                    if (IsHelp(currentInput, out symbol, out commandInput, out remainingInput))
+                    {
+                        result = await ExecuteAndNotify(commandInput, symbol, channel, ExecuteHelp, HelpExecuted);
+                        currentInput = remainingInput;
+                    }
+                    else if (IsMagic(currentInput, out symbol, out commandInput, out remainingInput))
+                    {
+                        result = await ExecuteAndNotify(commandInput, symbol, channel, ExecuteMagic, MagicExecuted);
+                        currentInput = remainingInput;
+                    }
+                    else
+                    {
+                        result = await ExecuteAndNotify(currentInput, channel, ExecuteMundane, MundaneExecuted);
+                        currentInput = string.Empty;
+                    }
                 }
-                else if (IsMagic(input, out var magicSymbol))
-                {
-                    return await ExecuteAndNotify(input, magicSymbol, channel, ExecuteMagic, MagicExecuted);
-                }
-                else
-                {
-                    return await ExecuteAndNotify(input, channel, ExecuteMundane, MundaneExecuted);
-                }
+
+                // Return the most recently-obtained result.
+                return result;
             }
             catch (Exception e)
             {
@@ -570,7 +599,7 @@ namespace Microsoft.Jupyter.Core
             // Which magic command do we have? Split up until the first space.
             if (symbol is MagicSymbol magic)
             {
-                var parts = input.Trim().Split(new[] { ' ' }, 2);
+                var parts = input.Trim().Split(null, 2);
                 var remainingInput = parts.Length > 1 ? parts[1] : "";
                 return await magic.Execute(remainingInput, channel);
             }
