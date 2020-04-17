@@ -18,6 +18,10 @@ namespace Microsoft.Jupyter.Core
         ///     Creates a wrapper of an IChannel that adds new lines to every message
         ///     sent to stdout and stderr.
         /// </summary>
+        /// <remarks>
+        ///     If <c>original</c> is already a <c>ChannelWithNewLines</c>, this method
+        ///     simply returns <c>original</c> unmodified.
+        /// </remarks>
         public static ChannelWithNewLines WithNewLines(this IChannel original) =>
             (original is ChannelWithNewLines ch) ? ch : new ChannelWithNewLines(original);
     }
