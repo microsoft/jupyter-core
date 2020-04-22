@@ -8,8 +8,8 @@ This makes it easy to package, distribute, and install language kernels.
 For instance, the [**IEcho**](examples/echo-kernel/) sample kernel can be installed into a user's Jupyter environment with two commands:
 
 ```
-dotnet tool install -g Microsoft.Jupyter.Example.IEcho
-dotnet iecho install
+cd examples/echo-kernel/
+dotnet run -- install
 ```
 
 Once installed, the IEcho example can then be used like any other Jupyter kernel by running your favorite client:
@@ -17,6 +17,13 @@ Once installed, the IEcho example can then be used like any other Jupyter kernel
 ```
 jupyter notebook
 ```
+
+After a language kernel has been published as a NuGet package, it can be installed into a user's Jupyter environment with two commands. For example, if the IEcho kernel were published as a NuGet package named `Microsoft.Jupyter.Example.IEcho`, it could be installed via the following commands:
+
+```
+dotnet tool install -g Microsoft.Jupyter.Example.IEcho
+dotnet iecho install
+````
 
 ## Making New Language Kernels ##
 
