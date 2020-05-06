@@ -9,9 +9,17 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Microsoft.Jupyter.Core
 {
+    internal class MundaneSymbol : ISymbol
+    {
+        public string Name { get; set; }
+        
+        public SymbolKind Kind { get; set; }
+    }
+
     internal class MockSymbolResolver : ISymbolResolver
     {
         private string[] magicSymbols = new[] { "%abc", "%def" };
+        private string[] otherSymbols = new[] { "ghi", "jkl" };
 
         public ISymbol? Resolve(string symbolName) =>
             this.magicSymbols.Contains(symbolName)
@@ -21,8 +29,16 @@ namespace Microsoft.Jupyter.Core
                     Documentation = new Documentation(),
                     Kind = SymbolKind.Magic,
                     Execute = async (input, channel) => ExecutionResult.Aborted
-                }
-            : null;
+                } as ISymbol
+            : 
+            this.otherSymbols.Contains(symbolName)
+            ? new MundaneSymbol
+                {
+                    Name = symbolName,
+                    Kind = SymbolKind.Callable
+                } as ISymbol
+            :
+            null;
     }
 
     [TestClass]
@@ -34,11 +50,10 @@ namespace Microsoft.Jupyter.Core
             var input = string.Empty;
 
             var inputParser = new InputParser(new MockSymbolResolver());
-            var isMagicOrHelp = inputParser.IsMagicOrHelp(input, out ISymbol? symbol, out string? commandInput, out bool isHelp, out string? remainingInput);
+            var commandType = inputParser.GetNextCommand(input, out ISymbol? symbol, out string? commandInput, out string? remainingInput);
             
-            Assert.IsFalse(isMagicOrHelp);
+            Assert.AreEqual(commandType, InputParser.CommandType.Mundane);
             Assert.IsNull(symbol);
-            Assert.IsFalse(isHelp);
             Assert.AreEqual(commandInput, string.Empty);
             Assert.AreEqual(remainingInput, string.Empty);
         }
@@ -56,11 +71,34 @@ namespace Microsoft.Jupyter.Core
             foreach (var input in inputs)
             {
                 var inputParser = new InputParser(new MockSymbolResolver());
-                var isMagicOrHelp = inputParser.IsMagicOrHelp(input, out ISymbol? symbol, out string? commandInput, out bool isHelp, out string? remainingInput);
+                var commandType = inputParser.GetNextCommand(input, out ISymbol? symbol, out string? commandInput, out string? remainingInput);
                 
-                Assert.IsFalse(isMagicOrHelp, $"Input:\n{input}");
+                Assert.AreEqual(commandType, InputParser.CommandType.Mundane);
                 Assert.IsNull(symbol, $"Input:\n{input}");
-                Assert.IsFalse(isHelp, $"Input:\n{input}");
+                Assert.AreEqual(commandInput, input, $"Input:\n{input}");
+                Assert.AreEqual(remainingInput, string.Empty, $"Input:\n{input}");
+            }
+        }
+        
+        [TestMethod]
+        public void TestSingleHelp()
+        {
+            var inputs = new[] { 
+                "?ghi",                            // simple case with leading ?
+                "jkl?",                            // simple case with trailing ?
+                " \t ?ghi",                        // leading whitespace should have no impact
+                " \r\n ?ghi \n arg ",              // leading line breaks should have no impact
+                "?jkl arg \n\t ?xyz arg",          // invalid symbol should be treated as plain text
+                "?ghi arg ?jkl arg",               // help in middle of line should not be detected
+            };
+
+            foreach (var input in inputs)
+            {
+                var inputParser = new InputParser(new MockSymbolResolver());
+                var commandType = inputParser.GetNextCommand(input, out ISymbol? symbol, out string? commandInput, out string? remainingInput);
+                
+                Assert.AreEqual(commandType, InputParser.CommandType.Help);
+                Assert.IsNotNull(symbol, $"Input:\n{input}");
                 Assert.AreEqual(commandInput, input, $"Input:\n{input}");
                 Assert.AreEqual(remainingInput, string.Empty, $"Input:\n{input}");
             }
@@ -82,18 +120,17 @@ namespace Microsoft.Jupyter.Core
             foreach (var input in inputs)
             {
                 var inputParser = new InputParser(new MockSymbolResolver());
-                var isMagicOrHelp = inputParser.IsMagicOrHelp(input, out ISymbol? symbol, out string? commandInput, out bool isHelp, out string? remainingInput);
+                var commandType = inputParser.GetNextCommand(input, out ISymbol? symbol, out string? commandInput, out string? remainingInput);
                 
-                Assert.IsTrue(isMagicOrHelp, $"Input:\n{input}");
+                Assert.AreEqual(commandType, InputParser.CommandType.Magic);
                 Assert.IsNotNull(symbol, $"Input:\n{input}");
-                Assert.IsFalse(isHelp, $"Input:\n{input}");
                 Assert.AreEqual(commandInput, input, $"Input:\n{input}");
                 Assert.AreEqual(remainingInput, string.Empty, $"Input:\n{input}");
             }
         }
 
         [TestMethod]
-        public void TestSingleHelp()
+        public void TestSingleMagicHelp()
         {
             var inputs = new[] { 
                 "?%abc",                    // leading ?
@@ -104,11 +141,10 @@ namespace Microsoft.Jupyter.Core
             foreach (var input in inputs)
             {
                 var inputParser = new InputParser(new MockSymbolResolver());
-                var isMagicOrHelp = inputParser.IsMagicOrHelp(input, out ISymbol? symbol, out string? commandInput, out bool isHelp, out string? remainingInput);
+                var commandType = inputParser.GetNextCommand(input, out ISymbol? symbol, out string? commandInput, out string? remainingInput);
                 
-                Assert.IsTrue(isMagicOrHelp, $"Input:\n{input}");
+                Assert.AreEqual(commandType, InputParser.CommandType.MagicHelp);
                 Assert.IsNotNull(symbol, $"Input:\n{input}");
-                Assert.IsTrue(isHelp, $"Input:\n{input}");
                 Assert.AreEqual(commandInput, input, $"Input:\n{input}");
                 Assert.AreEqual(remainingInput, string.Empty, $"Input:\n{input}");
             }
@@ -121,31 +157,28 @@ namespace Microsoft.Jupyter.Core
 
             // simple case
             var input = "%abc\n%def";
-            var isMagicOrHelp = inputParser.IsMagicOrHelp(input, out ISymbol? symbol, out string? commandInput, out bool isHelp, out string? remainingInput);
+            var commandType = inputParser.GetNextCommand(input, out ISymbol? symbol, out string? commandInput, out string? remainingInput);
                 
-            Assert.IsTrue(isMagicOrHelp, $"Input:\n{input}");
+            Assert.AreEqual(commandType, InputParser.CommandType.Magic);
             Assert.IsNotNull(symbol, $"Input:\n{input}");
-            Assert.IsFalse(isHelp, $"Input:\n{input}");
             Assert.AreEqual(commandInput, "%abc", $"Input:\n{input}");
             Assert.AreEqual(remainingInput, "%def", $"Input:\n{input}");
 
             // simple case with help
             input = "%abc?\n%def";
-            isMagicOrHelp = inputParser.IsMagicOrHelp(input, out symbol, out commandInput, out isHelp, out remainingInput);
+            commandType = inputParser.GetNextCommand(input, out symbol, out commandInput, out remainingInput);
                 
-            Assert.IsTrue(isMagicOrHelp, $"Input:\n{input}");
+            Assert.AreEqual(commandType, InputParser.CommandType.MagicHelp);
             Assert.IsNotNull(symbol, $"Input:\n{input}");
-            Assert.IsTrue(isHelp, $"Input:\n{input}");
             Assert.AreEqual(commandInput, "%abc?", $"Input:\n{input}");
             Assert.AreEqual(remainingInput, "%def", $"Input:\n{input}");
 
             // multi-line args and extra whitespace
             input = " \n  %abc \r\n arg1 \n\t arg2  \r\n  \t  %def arg3 arg4";
-            isMagicOrHelp = inputParser.IsMagicOrHelp(input, out symbol, out commandInput, out isHelp, out remainingInput);
+            commandType = inputParser.GetNextCommand(input, out symbol, out commandInput, out remainingInput);
                 
-            Assert.IsTrue(isMagicOrHelp, $"Input:\n{input}");
+            Assert.AreEqual(commandType, InputParser.CommandType.Magic);
             Assert.IsNotNull(symbol, $"Input:\n{input}");
-            Assert.IsFalse(isHelp, $"Input:\n{input}");
             Assert.IsTrue(commandInput != null && commandInput.TrimStart().StartsWith("%abc"), $"Input:\n{input}");
             Assert.IsTrue(remainingInput != null && remainingInput.TrimStart().StartsWith("%def"), $"Input:\n{input}");
         }

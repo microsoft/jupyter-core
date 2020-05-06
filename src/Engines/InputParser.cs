@@ -10,7 +10,15 @@ using System.Linq;
 namespace Microsoft.Jupyter.Core
 {
     internal class InputParser
-    {
+    {       
+        internal enum CommandType
+        {
+            Mundane,
+            Magic,
+            Help,
+            MagicHelp
+        }
+
         public ISymbolResolver Resolver;
         
         public InputParser(ISymbolResolver resolver)
@@ -18,26 +26,27 @@ namespace Microsoft.Jupyter.Core
             this.Resolver = resolver;
         }
 
-        public bool IsMagicOrHelp(string input, out ISymbol? symbol, out string? commandInput, out bool isHelp, out string? remainingInput)
+        public CommandType GetNextCommand(string input, out ISymbol? symbol, out string? commandInput, out string? remainingInput)
         {
             if (input == null) { throw new ArgumentNullException("input"); }
 
             symbol = null;
-            isHelp = false;
             commandInput = input;
             remainingInput = string.Empty;
 
             var inputLines = input?.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None).ToList();
             if (inputLines == null || inputLines.Count == 0)
             {
-                return false;
+                return CommandType.Mundane;
             }
 
             // Find the first non-whitespace line and see if it starts with a magic symbol.
+            bool isHelp = false;
             int firstLineIndex = inputLines.FindIndex(s => !string.IsNullOrWhiteSpace(s));
-            if (firstLineIndex < 0 || !StartsWithMagicOrHelp(inputLines[firstLineIndex], out symbol, out isHelp))
+            if (firstLineIndex < 0 || !StartsWithMagic(inputLines[firstLineIndex], out symbol, out isHelp))
             {
-                return false;
+                // No magic symbol found.
+                return isHelp ? CommandType.Help : CommandType.Mundane;
             }
 
             // Look through the remaining lines until we find one that
@@ -45,7 +54,7 @@ namespace Microsoft.Jupyter.Core
             commandInput = null;
             for (int lineIndex = firstLineIndex + 1; lineIndex < inputLines.Count; lineIndex++)
             {
-                if (StartsWithMagicOrHelp(inputLines[lineIndex], out _, out _))
+                if (StartsWithMagic(inputLines[lineIndex], out _, out _))
                 {
                     commandInput = string.Join(Environment.NewLine, inputLines.SkipLast(inputLines.Count - lineIndex));
                     remainingInput = string.Join(Environment.NewLine, inputLines.Skip(lineIndex));
@@ -60,10 +69,10 @@ namespace Microsoft.Jupyter.Core
                 commandInput = input;
             }
             
-            return true;
+            return isHelp ? CommandType.MagicHelp : CommandType.Magic;
         }
 
-        private bool StartsWithMagicOrHelp(string input, out ISymbol? symbol, out bool isHelp)
+        private bool StartsWithMagic(string input, out ISymbol? symbol, out bool isHelp)
         {
             symbol = null;
             isHelp = false;
@@ -83,10 +92,10 @@ namespace Microsoft.Jupyter.Core
 
             if (!string.IsNullOrEmpty(symbolName))
             {
-                symbol = this.Resolver.Resolve(symbolName) as MagicSymbol;
+                symbol = this.Resolver.Resolve(symbolName);
             }
 
-            return symbol != null;
+            return (symbol as MagicSymbol) != null;
         }            
     }
 }

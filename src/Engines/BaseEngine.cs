@@ -484,8 +484,8 @@ namespace Microsoft.Jupyter.Core
         /// </example>
         public virtual bool IsMagic(string input, out ISymbol symbol, out string commandInput, out string remainingInput)
         {
-            return this.inputParser.IsMagicOrHelp(input, out symbol, out commandInput, out bool isHelp, out remainingInput)
-                && !isHelp;
+            var commandType = this.inputParser.GetNextCommand(input, out symbol, out commandInput, out remainingInput);
+            return commandType == InputParser.CommandType.Magic || commandType == InputParser.CommandType.MagicHelp;
         }
 
         /// <summary>
@@ -516,8 +516,8 @@ namespace Microsoft.Jupyter.Core
         /// </example>
         public virtual bool IsHelp(string input, out ISymbol symbol, out string commandInput, out string remainingInput)
         {
-            var isMagicOrHelp = this.inputParser.IsMagicOrHelp(input, out symbol, out commandInput, out bool isHelp, out remainingInput);
-            return isHelp;
+            var commandType = this.inputParser.GetNextCommand(input, out symbol, out commandInput, out remainingInput);
+            return commandType == InputParser.CommandType.Help || commandType == InputParser.CommandType.MagicHelp;
         }
 
         #endregion
@@ -547,14 +547,13 @@ namespace Microsoft.Jupyter.Core
                 while (result.Status == ExecuteStatus.Ok && !string.IsNullOrEmpty(currentInput))
                 {
                     // We first check to see if the first token is a help or magic command for this kernel.
-                    ISymbol symbol;
-                    string commandInput, remainingInput;
-                    if (IsHelp(currentInput, out symbol, out commandInput, out remainingInput))
+                    var commandType = this.inputParser.GetNextCommand(currentInput, out ISymbol symbol, out string commandInput, out string remainingInput);
+                    if (commandType == InputParser.CommandType.MagicHelp || commandType == InputParser.CommandType.Help)
                     {
                         result = await ExecuteAndNotify(commandInput, symbol, channel, ExecuteHelp, HelpExecuted);
                         currentInput = remainingInput;
                     }
-                    else if (IsMagic(currentInput, out symbol, out commandInput, out remainingInput))
+                    else if (commandType == InputParser.CommandType.Magic)
                     {
                         result = await ExecuteAndNotify(commandInput, symbol, channel, ExecuteMagic, MagicExecuted);
                         currentInput = remainingInput;
