@@ -177,6 +177,12 @@ namespace Microsoft.Jupyter.Core
             return new MagicSymbolToHtmlResultEncoder().Encode(magic)?.Data ?? string.Empty;
         }
 
+        private void AssertContainsAll(string fullString, params string[] values) =>
+            Assert.IsTrue(values.All(v => fullString.Contains(v)));
+
+        private void AssertContainsNone(string fullString, params string[] values) =>
+            Assert.IsFalse(values.Any(v => fullString.Contains(v)));
+
         [TestMethod]
         public void TestMagicEncoder()
         {
@@ -186,52 +192,32 @@ namespace Microsoft.Jupyter.Core
 
             var documentation = new Documentation();
             var encoding = EncodeTestMagic(documentation);
-            Assert.IsFalse(encoding.Contains(headingDescription));
-            Assert.IsFalse(encoding.Contains(headingRemarks));
-            Assert.IsFalse(encoding.Contains(headingExample));
+            AssertContainsNone(encoding, headingDescription, headingRemarks, headingExample);
 
             documentation.Summary = "Test summary.";
             encoding = EncodeTestMagic(documentation);
-            Assert.IsTrue(encoding.Contains(documentation.Summary));
-            Assert.IsFalse(encoding.Contains(headingDescription));
-            Assert.IsFalse(encoding.Contains(headingRemarks));
-            Assert.IsFalse(encoding.Contains(headingExample));
+            AssertContainsAll(encoding, documentation.Summary);
+            AssertContainsNone(encoding, headingDescription, headingRemarks, headingExample);
 
             documentation.Description = "Test description.";
             encoding = EncodeTestMagic(documentation);
-            Assert.IsTrue(encoding.Contains(documentation.Summary));
-            Assert.IsTrue(encoding.Contains(documentation.Description));
-            Assert.IsTrue(encoding.Contains(headingDescription));
-            Assert.IsFalse(encoding.Contains(headingRemarks));
-            Assert.IsFalse(encoding.Contains(headingExample));
+            AssertContainsAll(encoding, documentation.Summary, documentation.Description, headingDescription);
+            AssertContainsNone(encoding, headingRemarks, headingExample);
 
             documentation.Remarks = "Test remarks.";
             encoding = EncodeTestMagic(documentation);
-            Assert.IsTrue(encoding.Contains(documentation.Summary));
-            Assert.IsTrue(encoding.Contains(documentation.Description));
-            Assert.IsTrue(encoding.Contains(documentation.Remarks));
-            Assert.IsTrue(encoding.Contains(headingDescription));
-            Assert.IsTrue(encoding.Contains(headingRemarks));
-            Assert.IsFalse(encoding.Contains(headingExample));
+            AssertContainsAll(encoding, documentation.Summary, documentation.Description, documentation.Remarks, headingDescription, headingRemarks);
+            AssertContainsNone(encoding, headingExample);
 
             documentation.Examples = new List<string>();
             encoding = EncodeTestMagic(documentation);
-            Assert.IsTrue(encoding.Contains(documentation.Summary));
-            Assert.IsTrue(encoding.Contains(documentation.Description));
-            Assert.IsTrue(encoding.Contains(documentation.Remarks));
-            Assert.IsTrue(encoding.Contains(headingDescription));
-            Assert.IsTrue(encoding.Contains(headingRemarks));
-            Assert.IsFalse(encoding.Contains(headingExample));
+            AssertContainsAll(encoding, documentation.Summary, documentation.Description, documentation.Remarks, headingDescription, headingRemarks);
+            AssertContainsNone(encoding, headingExample);
 
             documentation.Examples = new List<string>() { "First example.", "Second example." };
             encoding = EncodeTestMagic(documentation);
-            Assert.IsTrue(encoding.Contains(documentation.Summary));
-            Assert.IsTrue(encoding.Contains(documentation.Description));
-            Assert.IsTrue(encoding.Contains(documentation.Remarks));
-            Assert.IsTrue(encoding.Contains(headingDescription));
-            Assert.IsTrue(encoding.Contains(headingRemarks));
-            Assert.IsTrue(encoding.Contains(headingExample));
-            Assert.IsTrue(documentation.Examples.All(example => encoding.Contains(example)));
+            AssertContainsAll(encoding, documentation.Summary, documentation.Description, documentation.Remarks, headingDescription, headingRemarks);
+            AssertContainsAll(encoding, documentation.Examples.ToArray());
         }
     }
 }
