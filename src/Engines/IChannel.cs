@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
+using Microsoft.Jupyter.Core.Protocol;
+
 namespace Microsoft.Jupyter.Core
 {
     /// <summary>
@@ -41,8 +43,8 @@ namespace Microsoft.Jupyter.Core
 
     /// <summary>
     ///      Specifies a display channel between a Jupyter kernel and its clients
-    ///      that can be used for printing to streams and for displaying
-    ///      rich data.
+    ///      that can be used for printing to streams, displaying rich data, and
+    ///      sending messages.
     /// </summary>
     public interface IChannel
     {
@@ -75,5 +77,11 @@ namespace Microsoft.Jupyter.Core
             this.Display(displayable);
             return new UpdatableDisplayFallback(this);
         }
+
+        /// <summary>
+        ///     Sends an iopub message to the client associated with this channel.
+        /// </summary>
+        /// <param name="message">The message to send. Cannot be null.</param>
+        void SendIoPubMessage(Message message);
     }
 }

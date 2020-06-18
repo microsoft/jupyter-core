@@ -96,6 +96,11 @@ namespace Microsoft.Jupyter.Core
             {
                 engine.WriteToStream(parent, StreamName.StandardOut, message);
             }
+
+            public void SendIoPubMessage(Message message)
+            {
+                engine.ShellServer.SendIoPubMessage(message.AsReplyTo(parent));
+            }
         }
 
         /// <summary>
