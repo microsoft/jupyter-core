@@ -36,6 +36,9 @@ namespace Microsoft.Jupyter.Core
 
         [JsonProperty("language")]
         public string LanguageName;
+
+        [JsonProperty("interrupt_mode")]
+        public string InterruptMode = "message";
     }
 
     /// <summary>

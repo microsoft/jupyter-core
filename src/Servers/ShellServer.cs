@@ -68,6 +68,7 @@ namespace Microsoft.Jupyter.Core
             this.router = router;
 
             router.RegisterHandler("kernel_info_request", async message => KernelInfoRequest?.Invoke(message));
+            router.RegisterHandler("interrupt_request", async message => InterruptRequest?.Invoke(message));
             router.RegisterHandler("shutdown_request", async message => ShutdownRequest?.Invoke(message));
         }
 
@@ -157,6 +158,7 @@ namespace Microsoft.Jupyter.Core
         private bool disposedValue = false; // To detect redundant calls
 
         public event Action<Message> KernelInfoRequest;
+        public event Action<Message> InterruptRequest;
         public event Action<Message> ShutdownRequest;
 
         protected virtual void Dispose(bool disposing)
