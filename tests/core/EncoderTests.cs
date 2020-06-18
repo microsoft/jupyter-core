@@ -103,23 +103,44 @@ namespace Microsoft.Jupyter.Core
         }
 
         [TestMethod]
-        public void TestTableToHtml()
+        public void TestTableToTextRightAlign()
         {
-            var encoder = new TableToHtmlDisplayEncoder();
-            Assert.AreEqual(encoder.MimeType, MimeTypes.Html);
+            var encoder = new TableToTextDisplayEncoder() { TableCellAlignment = TableCellAlignment.Right };
+            Assert.AreEqual(encoder.MimeType, MimeTypes.PlainText);
             Assert.IsNull(encoder.Encode(null));
             var data = encoder.Encode(exampleTable);
             Assert.IsTrue(data.HasValue);
-            var expected =
-                "<table>" +
-                    "<thead><tr><th>foo</th><th>bar</th></tr></thead>" +
-                    "<tbody>" +
-                        "<tr><td>42</td><td>3.14</td></tr>" +
-                        "<tr><td>1337</td><td>2.718</td></tr>" +
-                    "</tbody>" +
-                "</table>";
+            var expected = @" foo   bar
+---- -----
+  42  3.14
+1337 2.718
+";
             Assert.AreEqual(data.Value.Data, expected);
             Assert.AreEqual(data.Value.Metadata, null);
+        }
+
+        [TestMethod]
+        public void TestTableToHtml()
+        {
+            foreach (TableCellAlignment alignment in typeof(TableCellAlignment).GetEnumValues())
+            {
+                var encoder = new TableToHtmlDisplayEncoder() { TableCellAlignment = alignment };
+                Assert.AreEqual(encoder.MimeType, MimeTypes.Html);
+                Assert.IsNull(encoder.Encode(null));
+                var data = encoder.Encode(exampleTable);
+                Assert.IsTrue(data.HasValue);
+                var style = alignment.ToStyleAttribute();
+                var expected =
+                    "<table>" +
+                        $"<thead><tr><th {style}>foo</th><th {style}>bar</th></tr></thead>" +
+                        "<tbody>" +
+                            $"<tr><td {style}>42</td><td {style}>3.14</td></tr>" +
+                            $"<tr><td {style}>1337</td><td {style}>2.718</td></tr>" +
+                        "</tbody>" +
+                    "</table>";
+                Assert.AreEqual(data.Value.Data, expected);
+                Assert.AreEqual(data.Value.Metadata, null);
+            }
         }
 
         [TestMethod]
