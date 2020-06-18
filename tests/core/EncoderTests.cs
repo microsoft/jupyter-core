@@ -185,5 +185,60 @@ namespace Microsoft.Jupyter.Core
                 Assert.IsTrue(encoder.Icons.ContainsKey(kind));
             }
         }
+
+        private string EncodeTestMagic(Documentation documentation)
+        {
+            var magic = new MagicSymbol
+            {
+                Name = "%test",
+                Documentation = documentation,
+                Kind = SymbolKind.Magic,
+                Execute = async (input, channel) => ExecutionResult.Aborted
+            };
+            return new MagicSymbolToHtmlResultEncoder().Encode(magic)?.Data ?? string.Empty;
+        }
+
+        private void AssertContainsAll(string fullString, params string[] values) =>
+            Assert.IsTrue(values.All(v => fullString.Contains(v)));
+
+        private void AssertContainsNone(string fullString, params string[] values) =>
+            Assert.IsFalse(values.Any(v => fullString.Contains(v)));
+
+        [TestMethod]
+        public void TestMagicEncoder()
+        {
+            var headingDescription = "<h5>Description</h5>";
+            var headingRemarks = "<h5>Remarks</h5>";
+            var headingExample = "<h5>Example</h5>";
+
+            var documentation = new Documentation();
+            var encoding = EncodeTestMagic(documentation);
+            AssertContainsNone(encoding, headingDescription, headingRemarks, headingExample);
+
+            documentation.Summary = "Test summary.";
+            encoding = EncodeTestMagic(documentation);
+            AssertContainsAll(encoding, documentation.Summary);
+            AssertContainsNone(encoding, headingDescription, headingRemarks, headingExample);
+
+            documentation.Description = "Test description.";
+            encoding = EncodeTestMagic(documentation);
+            AssertContainsAll(encoding, documentation.Summary, documentation.Description, headingDescription);
+            AssertContainsNone(encoding, headingRemarks, headingExample);
+
+            documentation.Remarks = "Test remarks.";
+            encoding = EncodeTestMagic(documentation);
+            AssertContainsAll(encoding, documentation.Summary, documentation.Description, documentation.Remarks, headingDescription, headingRemarks);
+            AssertContainsNone(encoding, headingExample);
+
+            documentation.Examples = new List<string>();
+            encoding = EncodeTestMagic(documentation);
+            AssertContainsAll(encoding, documentation.Summary, documentation.Description, documentation.Remarks, headingDescription, headingRemarks);
+            AssertContainsNone(encoding, headingExample);
+
+            documentation.Examples = new List<string>() { "First example.", "Second example." };
+            encoding = EncodeTestMagic(documentation);
+            AssertContainsAll(encoding, documentation.Summary, documentation.Description, documentation.Remarks, headingDescription, headingRemarks);
+            AssertContainsAll(encoding, documentation.Examples.ToArray());
+        }
     }
 }
