@@ -6,6 +6,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using Microsoft.Jupyter.Core.Protocol;
 
 namespace Microsoft.Jupyter.Core
 {
@@ -91,5 +92,8 @@ namespace Microsoft.Jupyter.Core
         ///     An object that can be used to update the display in the future.
         /// </returns>
         public IUpdatableDisplay DisplayUpdatable(object displayable) => BaseChannel?.DisplayUpdatable(displayable);
+
+        /// <inheritdoc/>
+        public void SendIoPubMessage(Message message) => BaseChannel?.SendIoPubMessage(message);
     }
 }
