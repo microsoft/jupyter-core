@@ -408,6 +408,7 @@ namespace Microsoft.Jupyter.Core
         public virtual void Start()
         {
             this.ShellServer.KernelInfoRequest += OnKernelInfoRequest;
+            this.ShellServer.InterruptRequest += OnInterruptRequest;
             this.ShellServer.ShutdownRequest += OnShutdownRequest;
             
             Logger.LogDebug("Registering execution handler service.");
@@ -448,6 +449,41 @@ namespace Microsoft.Jupyter.Core
             catch (Exception e)
             {
                 this.Logger?.LogError(e, "Unable to process KernelInfoRequest");
+            }
+        }
+
+        /// <summary>
+        ///       Called by shell servers to request cancellation of any
+        ///       current execution. This method simply replies with an
+        ///       empty message indicating that the interrupt has been
+        ///       handled. Classes that inherit from <see cref="BaseEngine"/>
+        ///       should override this method, implement custom interrupt
+        ///       handling, and then call this base class method when complete.
+        /// </summary>
+        /// <param name="message">The original request from the client.</param>
+        public virtual void OnInterruptRequest(Message message)
+        {
+            try
+            {
+                this.ShellServer.SendShellMessage(
+                    new Message
+                    {
+                        ZmqIdentities = message.ZmqIdentities,
+                        ParentHeader = message.Header,
+                        Metadata = null,
+                        Content = null,
+                        Header = new MessageHeader
+                        {
+                            MessageType = "interrupt_reply",
+                            Id = Guid.NewGuid().ToString(),
+                            ProtocolVersion = "5.2.0"
+                        }
+                    }
+                );
+            }
+            catch (Exception e)
+            {
+                this.Logger?.LogError(e, "Unable to process InterruptRequest");
             }
         }
 
