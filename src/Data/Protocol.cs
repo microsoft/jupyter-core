@@ -88,6 +88,7 @@ namespace Microsoft.Jupyter.Core.Protocol
             {
                 ["kernel_info_request"] = data => new EmptyContent(),
                 ["execute_request"] = data => JsonConvert.DeserializeObject<ExecuteRequestContent>(data),
+                ["interrupt_request"] = data => new EmptyContent(),
                 ["shutdown_request"] = data => JsonConvert.DeserializeObject<ShutdownRequestContent>(data)
             }.ToImmutableDictionary();
     }
