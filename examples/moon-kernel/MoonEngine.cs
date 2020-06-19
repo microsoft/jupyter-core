@@ -8,7 +8,7 @@ using MoonSharp.Interpreter;
 using MoonSharp.Interpreter.REPL;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Microsoft.Jupyter.Core
@@ -48,7 +48,7 @@ namespace Microsoft.Jupyter.Core
             interp = new ReplInterpreter(script);
         }
 
-        public override async Task<ExecutionResult> ExecuteMundane(string input, IChannel channel)
+        public override async Task<ExecutionResult> ExecuteMundane(string input, IChannel channel, CancellationToken cancellationToken)
         {
             var oldAction = printFn;
             printFn = channel.Stdout;

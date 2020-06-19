@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 
@@ -71,7 +72,7 @@ namespace Microsoft.Jupyter.Core
         ///      user.
         /// </summary>
         [JsonIgnore]
-        public Func<string, IChannel, Task<ExecutionResult>> Execute { get; set; }
+        public Func<string, IChannel, CancellationToken, Task<ExecutionResult>> Execute { get; set; }
     }
 
     /// <summary>
@@ -129,11 +130,11 @@ namespace Microsoft.Jupyter.Core
                     Name = attr.Name,
                     Documentation = attr.Documentation,
                     Kind = SymbolKind.Magic,
-                    Execute = (input, channel) =>
+                    Execute = (input, channel, cancellationToken) =>
                         {
                             try
                             {
-                                return (Task<ExecutionResult>)(method.Invoke(engine, new object[] { input, channel }));
+                                return (Task<ExecutionResult>)(method.Invoke(engine, new object[] { input, channel, cancellationToken }));
                             } 
                             catch (TargetInvocationException e)
                             {
@@ -141,7 +142,7 @@ namespace Microsoft.Jupyter.Core
                             }
                             catch (Exception)
                             {
-                                throw new InvalidOperationException($"Invalid magic method for {symbolName}. Expecting a public async method that takes a String and and IChannel as parameters.");
+                                throw new InvalidOperationException($"Invalid magic method for {symbolName}. Expecting a public async method that takes a String, an IChannel, and a CancellationToken as parameters.");
                             }
                         }
                 };

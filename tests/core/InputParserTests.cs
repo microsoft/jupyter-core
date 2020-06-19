@@ -28,7 +28,7 @@ namespace Microsoft.Jupyter.Core
                     Name = symbolName,
                     Documentation = new Documentation(),
                     Kind = SymbolKind.Magic,
-                    Execute = async (input, channel) => ExecutionResult.Aborted
+                    Execute = async (input, channel, cancellationToken) => ExecutionResult.Aborted
                 } as ISymbol
             : 
             this.otherSymbols.Contains(symbolName)

@@ -460,10 +460,8 @@ namespace Microsoft.Jupyter.Core
         /// <summary>
         ///       Called by shell servers to request cancellation of any
         ///       current execution. This method simply replies with an
-        ///       empty message indicating that the interrupt has been
-        ///       handled. Classes that inherit from <see cref="BaseEngine"/>
-        ///       should override this method, implement custom interrupt
-        ///       handling, and then call this base class method when complete.
+        ///       empty "interrupt_reply" message, indicating that the
+        ///       interrupt has been handled.
         /// </summary>
         /// <param name="message">The original request from the client.</param>
         public virtual void OnInterruptRequest(Message message)
@@ -574,7 +572,7 @@ namespace Microsoft.Jupyter.Core
         /// <param name="input">the cell's content.</param>
         /// <param name="channel">the channel to generate messages or errors.</param>
         /// <returns>An <c>ExecutionResult</c> instance with the results of </returns>
-        public async virtual Task<ExecutionResult> Execute(string input, IChannel channel)
+        public async virtual Task<ExecutionResult> Execute(string input, IChannel channel, CancellationToken cancellationToken)
         {
             try
             {
@@ -591,17 +589,17 @@ namespace Microsoft.Jupyter.Core
                     var commandType = this.inputParser.GetNextCommand(currentInput, out ISymbol symbol, out string commandInput, out string remainingInput);
                     if (commandType == InputParser.CommandType.MagicHelp || commandType == InputParser.CommandType.Help)
                     {
-                        result = await ExecuteAndNotify(commandInput, symbol, channel, ExecuteHelp, HelpExecuted);
+                        result = await ExecuteAndNotify(commandInput, symbol, channel, cancellationToken, ExecuteHelp, HelpExecuted);
                         currentInput = remainingInput;
                     }
                     else if (commandType == InputParser.CommandType.Magic)
                     {
-                        result = await ExecuteAndNotify(commandInput, symbol, channel, ExecuteMagic, MagicExecuted);
+                        result = await ExecuteAndNotify(commandInput, symbol, channel, cancellationToken, ExecuteMagic, MagicExecuted);
                         currentInput = remainingInput;
                     }
                     else
                     {
-                        result = await ExecuteAndNotify(currentInput, channel, ExecuteMundane, MundaneExecuted);
+                        result = await ExecuteAndNotify(currentInput, channel, cancellationToken, ExecuteMundane, MundaneExecuted);
                         currentInput = string.Empty;
                     }
                 }
@@ -617,7 +615,7 @@ namespace Microsoft.Jupyter.Core
             }
         }
 
-        public virtual async Task<ExecutionResult> ExecuteHelp(string input, ISymbol symbol, IChannel channel)
+        public virtual async Task<ExecutionResult> ExecuteHelp(string input, ISymbol symbol, IChannel channel, CancellationToken cancellationToken)
         {
             if (symbol == null)
             {
@@ -630,7 +628,7 @@ namespace Microsoft.Jupyter.Core
             }
         }
 
-        public virtual async Task<ExecutionResult> ExecuteMagic(string input, ISymbol symbol, IChannel channel)
+        public virtual async Task<ExecutionResult> ExecuteMagic(string input, ISymbol symbol, IChannel channel, CancellationToken cancellationToken)
         {
             // We should never be called with an ISymbol that isn't a MagicSymbol,
             // since this method should only be called by using magicResolver.
@@ -641,7 +639,7 @@ namespace Microsoft.Jupyter.Core
             {
                 var parts = input.Trim().Split(null, 2);
                 var remainingInput = parts.Length > 1 ? parts[1] : "";
-                return await magic.Execute(remainingInput, channel);
+                return await magic.Execute(remainingInput, channel, cancellationToken);
             }
             else
             {
@@ -662,15 +660,21 @@ namespace Microsoft.Jupyter.Core
         ///     as the result of executing the input (e.g.: as the result typeset
         ///     as <c>Out[12]:</c> outputs).
         /// </returns>
-        public abstract Task<ExecutionResult> ExecuteMundane(string input, IChannel channel);
+        public abstract Task<ExecutionResult> ExecuteMundane(string input, IChannel channel, CancellationToken cancellationToken);
 
         /// <summary>
         ///     Executes the given action with the corresponding parameters, and then triggers the given event.
         /// </summary>
-        public async Task<ExecutionResult> ExecuteAndNotify(string input, IChannel channel, Func<string, IChannel, Task<ExecutionResult>> action, EventHandler<ExecutedEventArgs> evt)
+        public async Task<ExecutionResult> ExecuteAndNotify(
+            string input,
+            IChannel channel,
+            CancellationToken cancellationToken,
+            Func<string, IChannel, CancellationToken, Task<ExecutionResult>> action,
+            EventHandler<ExecutedEventArgs> evt
+        )
         {
             var duration = Stopwatch.StartNew();
-            var result = await action(input, channel);
+            var result = await action(input, channel, cancellationToken);
             duration.Stop();
 
             evt?.Invoke(this, new ExecutedEventArgs(null, result, duration.Elapsed));
@@ -684,12 +688,13 @@ namespace Microsoft.Jupyter.Core
             string input,
             ISymbol symbol,
             IChannel channel,
-            Func<string, ISymbol, IChannel, Task<ExecutionResult>> action,
+            CancellationToken cancellationToken,
+            Func<string, ISymbol, IChannel, CancellationToken, Task<ExecutionResult>> action,
             EventHandler<ExecutedEventArgs> evt
         )
         {
             var duration = Stopwatch.StartNew();
-            var result = await action(input, symbol, channel);
+            var result = await action(input, symbol, channel, cancellationToken);
             duration.Stop();
 
             evt?.Invoke(this, new ExecutedEventArgs(symbol, result, duration.Elapsed));
@@ -702,7 +707,7 @@ namespace Microsoft.Jupyter.Core
         [MagicCommand("%history",
             summary: "Displays a list of commands run so far this session."
         )]
-        public async Task<ExecutionResult> ExecuteHistory(string input, IChannel channel)
+        public async Task<ExecutionResult> ExecuteHistory(string input, IChannel channel, CancellationToken cancellationToken)
         {
             return History.ToExecutionResult();
         }
@@ -710,7 +715,7 @@ namespace Microsoft.Jupyter.Core
         [MagicCommand("%version",
             summary: "Displays the version numbers for various components of this kernel."
         )]
-        public async Task<ExecutionResult> ExecuteVersion(string input, IChannel channel)
+        public async Task<ExecutionResult> ExecuteVersion(string input, IChannel channel, CancellationToken cancellationToken)
         {
             var versions = Context.Properties.VersionTable;
             channel.Display(

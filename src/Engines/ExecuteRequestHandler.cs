@@ -49,11 +49,26 @@ namespace Microsoft.Jupyter.Core
         
         protected async virtual Task<ExecutionResult> ExecutionTaskForMessage(Message message, int executionCount)
         {
-            var engineResponse = await engine.Execute(
-                ((ExecuteRequestContent)message.Content).Code,
-                new BaseEngine.ExecutionChannel(engine, message)
-            );
+            var engineResponse = ExecutionResult.Aborted;
 
+            using (var cancellationTokenSource = new CancellationTokenSource())
+            {
+                Action<Message> onInterruptRequest = (message) => cancellationTokenSource.Cancel();
+                this.shellServer.InterruptRequest += onInterruptRequest;
+
+                try
+                {
+                    engineResponse = await engine.Execute(
+                        ((ExecuteRequestContent)message.Content).Code,
+                        new BaseEngine.ExecutionChannel(engine, message),
+                        cancellationTokenSource.Token
+                    );
+                }
+                finally
+                {
+                    this.shellServer.InterruptRequest -= onInterruptRequest;
+                }
+            }
             
             // Send the engine's output as an execution result.
             if (engineResponse.Output != null)
