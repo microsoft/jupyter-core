@@ -35,9 +35,8 @@ steps:
   inputs:
     command: pack
     configuration: $(Build.Configuration)
-    nobuild: true
     packagesToPack: src/jupyter-core.csproj
-    arguments: '-p:Version=$(NuGetPackage.Version) -p:PackageVersion=$(NuGetPackage.Version)'
+    arguments: '-p:Version=$(Assembly.Version) -p:PackageVersion=$(NuGetPackage.Version)'
 
 
 - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@1
