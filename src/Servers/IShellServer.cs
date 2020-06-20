@@ -8,8 +8,6 @@ namespace Microsoft.Jupyter.Core
     public interface IShellServer
     {
         event Action<Message> KernelInfoRequest;
-        
-        event Action<Message> InterruptRequest;
 
         event Action<Message> ShutdownRequest;
 
@@ -18,5 +16,10 @@ namespace Microsoft.Jupyter.Core
         void SendIoPubMessage(Message message);
 
         void Start();
+    }
+
+    public interface IShellServerSupportsInterrupt : IShellServer
+    {
+        event Action<Message> InterruptRequest;
     }
 }
