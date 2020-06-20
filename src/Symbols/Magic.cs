@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 
@@ -72,6 +73,25 @@ namespace Microsoft.Jupyter.Core
         /// </summary>
         [JsonIgnore]
         public Func<string, IChannel, Task<ExecutionResult>> Execute { get; set; }
+    }
+
+    /// <summary>
+    ///      A symbol representing a magic command that is cancellable.
+    /// </summary>
+    public class CancellableMagicSymbol : MagicSymbol
+    {
+        /// <summary>
+        ///     Creates a cancellable magic symbol object.
+        /// </summary>
+        public CancellableMagicSymbol() =>
+            this.Execute = (input, channel) => this.ExecuteCancellable(input, channel, CancellationToken.None);
+
+        /// <summary>
+        ///      A function to be run when the magic command is executed by the
+        ///      user which supports cancellation.
+        /// </summary>
+        [JsonIgnore]
+        public Func<string, IChannel, CancellationToken, Task<ExecutionResult>> ExecuteCancellable { get; set; }
     }
 
     /// <summary>
