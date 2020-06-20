@@ -1,4 +1,4 @@
-name: $(Build.Major).$(Build.Minor).$(date:yyMM).$(Build.BuildId)
+name: $(Build.Major).$(Build.Minor).0.$(Build.BuildId)
 trigger:
 - master
 resources:
@@ -7,7 +7,7 @@ resources:
 variables:
   Build.Major: 1
   Build.Minor: 4
-  Build.Patch: $(date:yyMM)
+  Build.Patch: 0
   Build.Revision: $(Build.BuildId)
   Build.Configuration: 'Release'
   Assembly.Constants: 'SIGNED'
