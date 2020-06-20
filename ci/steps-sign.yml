@@ -37,10 +37,7 @@ steps:
     configuration: $(Build.Configuration)
     nobuild: true
     packagesToPack: src/jupyter-core.csproj
-    versioningScheme: $(VersioningScheme)
-    majorVersion: $(Build.Major)
-    minorVersion: $(Build.Minor)
-    patchVersion: $(Build.Patch)
+    arguments: '-p:Version=$(Assembly.Version) -p:PackageVersion=$(NuGetPackage.Version)'
 
 
 - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@1

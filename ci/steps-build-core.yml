@@ -12,7 +12,7 @@ steps:
   displayName: "Build and run unit tests on Core library"
   inputs:
     command: test
-    arguments: '-c $(Build.Configuration) -v n  /p:DefineConstants=$(Assembly.Constants)'
+    arguments: '-c $(Build.Configuration) -v n -p:DefineConstants=$(Assembly.Constants) -p:Version=$(Assembly.Version)'
     projects: tests/core/core.csproj
 
 - task: DotNetCoreCLI@2
@@ -21,7 +21,4 @@ steps:
     command: pack
     configuration: $(Build.Configuration)
     packagesToPack: src/jupyter-core.csproj
-    versioningScheme: $(VersioningScheme)
-    majorVersion: $(Build.Major)
-    minorVersion: $(Build.Minor)
-    patchVersion: $(Build.Patch)
+    arguments: '-p:Version=$(Assembly.Version) -p:PackageVersion=$(NuGetPackage.Version)'

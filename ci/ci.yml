@@ -1,4 +1,4 @@
-name: $(Build.Major).$(Build.Minor).$(Date:yyMM).$(DayOfMonth)$(Rev:rr)
+name: $(Build.Major).$(Build.Minor).$(Date:yyMM)$(DayOfMonth)$(Rev:rr)
 trigger:
 - master
 resources:
@@ -7,10 +7,9 @@ resources:
 variables:
   Build.Major: 1
   Build.Minor: 4
-  Build.Patch: $(Date:yyMM)
-  Build.Revision: $(DayOfMonth)$(Rev:rr)
   Build.Configuration: 'Release'
-  VersioningScheme: 'byPrereleaseNumber'
+  Assembly.Version: $(Build.Major).$(Build.Minor).0.0
+  NuGetPackage.Version: $(Build.BuildNumber)
 
 
 jobs:
