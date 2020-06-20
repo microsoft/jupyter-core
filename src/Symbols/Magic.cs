@@ -66,7 +66,7 @@ namespace Microsoft.Jupyter.Core
         ///     Documentation about this magic command to be displayed to the user.
         /// </summary>
         public Documentation Documentation { get; set; }
-        
+
         /// <summary>
         ///      A function to be run when the magic command is executed by the
         ///      user.
