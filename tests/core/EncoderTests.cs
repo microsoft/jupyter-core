@@ -193,7 +193,7 @@ namespace Microsoft.Jupyter.Core
                 Name = "%test",
                 Documentation = documentation,
                 Kind = SymbolKind.Magic,
-                Execute = async (input, channel, cancellationToken) => ExecutionResult.Aborted
+                Execute = async (input, channel) => ExecutionResult.Aborted
             };
             return new MagicSymbolToHtmlResultEncoder().Encode(magic)?.Data ?? string.Empty;
         }

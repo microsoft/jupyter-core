@@ -66,13 +66,32 @@ namespace Microsoft.Jupyter.Core
         ///     Documentation about this magic command to be displayed to the user.
         /// </summary>
         public Documentation Documentation { get; set; }
-
+        
         /// <summary>
         ///      A function to be run when the magic command is executed by the
         ///      user.
         /// </summary>
         [JsonIgnore]
-        public Func<string, IChannel, CancellationToken, Task<ExecutionResult>> Execute { get; set; }
+        public Func<string, IChannel, Task<ExecutionResult>> Execute { get; set; }
+    }
+
+    /// <summary>
+    ///      A symbol representing a magic command that is cancellable.
+    /// </summary>
+    public class CancellableMagicSymbol : MagicSymbol
+    {
+        /// <summary>
+        ///     Creates a cancellable magic symbol object.
+        /// </summary>
+        public CancellableMagicSymbol() =>
+            this.Execute = (input, channel) => this.ExecuteCancellable(input, channel, CancellationToken.None);
+
+        /// <summary>
+        ///      A function to be run when the magic command is executed by the
+        ///      user which supports cancellation.
+        /// </summary>
+        [JsonIgnore]
+        public Func<string, IChannel, CancellationToken, Task<ExecutionResult>> ExecuteCancellable { get; set; }
     }
 
     /// <summary>
@@ -130,11 +149,11 @@ namespace Microsoft.Jupyter.Core
                     Name = attr.Name,
                     Documentation = attr.Documentation,
                     Kind = SymbolKind.Magic,
-                    Execute = (input, channel, cancellationToken) =>
+                    Execute = (input, channel) =>
                         {
                             try
                             {
-                                return (Task<ExecutionResult>)(method.Invoke(engine, new object[] { input, channel, cancellationToken }));
+                                return (Task<ExecutionResult>)(method.Invoke(engine, new object[] { input, channel }));
                             } 
                             catch (TargetInvocationException e)
                             {
@@ -142,7 +161,7 @@ namespace Microsoft.Jupyter.Core
                             }
                             catch (Exception)
                             {
-                                throw new InvalidOperationException($"Invalid magic method for {symbolName}. Expecting a public async method that takes a String, an IChannel, and a CancellationToken as parameters.");
+                                throw new InvalidOperationException($"Invalid magic method for {symbolName}. Expecting a public async method that takes a String and an IChannel as parameters.");
                             }
                         }
                 };

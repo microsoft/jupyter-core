@@ -22,14 +22,14 @@ namespace Microsoft.Jupyter.Core
             IServiceProvider serviceProvider
         ) : base(shell, router, context, logger, serviceProvider) { }
 
-        public override async Task<ExecutionResult> ExecuteMundane(string input, IChannel channel, CancellationToken cancellationToken) =>
+        public override async Task<ExecutionResult> ExecuteMundane(string input, IChannel channel) =>
             (Program.ShoutOption.HasValue() ? input.ToUpper() : input).ToExecutionResult();
 
         [MagicCommand(
             "%tick",
             "Writes some ticks to demonstrate updatable display data."
         )]
-        public async Task<ExecutionResult> ExecuteTick(string code, IChannel channel, CancellationToken cancellationToken)
+        public async Task<ExecutionResult> ExecuteTick(string code, IChannel channel)
         {
             var tickMessage = "Tick.";
             var updatable = channel.DisplayUpdatable(tickMessage);

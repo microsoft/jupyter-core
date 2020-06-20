@@ -572,6 +572,19 @@ namespace Microsoft.Jupyter.Core
         /// <param name="input">the cell's content.</param>
         /// <param name="channel">the channel to generate messages or errors.</param>
         /// <returns>An <c>ExecutionResult</c> instance with the results of </returns>
+        public async virtual Task<ExecutionResult> Execute(string input, IChannel channel)
+            => await Execute(input, channel, CancellationToken.None);
+
+        /// <summary>
+        /// Main entry point to execute a Jupyter cell.
+        /// 
+        /// It identifies if the cell contains a help or magic command and triggers ExecuteHelp
+        /// or ExecuteMagic accordingly. If no special symbols are found, it triggers ExecuteMundane.
+        /// </summary>
+        /// <param name="input">the cell's content.</param>
+        /// <param name="channel">the channel to generate messages or errors.</param>
+        /// <param name="cancellationToken">the cancellation token used to request cancellation.</param>
+        /// <returns>An <c>ExecutionResult</c> instance with the results of </returns>
         public async virtual Task<ExecutionResult> Execute(string input, IChannel channel, CancellationToken cancellationToken)
         {
             try
@@ -615,6 +628,9 @@ namespace Microsoft.Jupyter.Core
             }
         }
 
+        public virtual async Task<ExecutionResult> ExecuteHelp(string input, ISymbol symbol, IChannel channel)
+            => await ExecuteHelp(input, symbol, channel, CancellationToken.None);
+
         public virtual async Task<ExecutionResult> ExecuteHelp(string input, ISymbol symbol, IChannel channel, CancellationToken cancellationToken)
         {
             if (symbol == null)
@@ -628,6 +644,9 @@ namespace Microsoft.Jupyter.Core
             }
         }
 
+        public virtual async Task<ExecutionResult> ExecuteMagic(string input, ISymbol symbol, IChannel channel)
+            => await ExecuteMagic(input, symbol, channel, CancellationToken.None);
+
         public virtual async Task<ExecutionResult> ExecuteMagic(string input, ISymbol symbol, IChannel channel, CancellationToken cancellationToken)
         {
             // We should never be called with an ISymbol that isn't a MagicSymbol,
@@ -639,7 +658,11 @@ namespace Microsoft.Jupyter.Core
             {
                 var parts = input.Trim().Split(null, 2);
                 var remainingInput = parts.Length > 1 ? parts[1] : "";
-                return await magic.Execute(remainingInput, channel, cancellationToken);
+                if (magic is CancellableMagicSymbol cancellableMagic)
+                {
+                    return await cancellableMagic.ExecuteCancellable(remainingInput, channel, cancellationToken);
+                }                
+                return await magic.Execute(remainingInput, channel);
             }
             else
             {
@@ -660,7 +683,42 @@ namespace Microsoft.Jupyter.Core
         ///     as the result of executing the input (e.g.: as the result typeset
         ///     as <c>Out[12]:</c> outputs).
         /// </returns>
-        public abstract Task<ExecutionResult> ExecuteMundane(string input, IChannel channel, CancellationToken cancellationToken);
+        public virtual Task<ExecutionResult> ExecuteMundane(string input, IChannel channel) =>
+            ExecuteMundane(input, channel, CancellationToken.None);
+
+        /// <summary>
+        ///      Executes a given input cell, returning any result from the
+        ///      execution, with a provided cancellation token that will be
+        ///      used to request cancellation in case a kernel interrupt is
+        ///      triggered.
+        /// </summary>
+        /// <param name="input">The input sent by the client for execution.</param>
+        /// <param name="channel">The display channel used to present information back to the client.</param>
+        /// <param name="cancellationToken">The cancellation token that will be used to request cancellation.</param>
+        /// <returns>
+        ///     A value indicating whether the input executed
+        ///     correctly, and what value should be reported back to the client
+        ///     as the result of executing the input (e.g.: as the result typeset
+        ///     as <c>Out[12]:</c> outputs).
+        /// </returns>
+        public virtual Task<ExecutionResult> ExecuteMundane(string input, IChannel channel, CancellationToken cancellationToken)
+            => throw new NotImplementedException();
+
+        /// <summary>
+        ///     Executes the given action with the corresponding parameters, and then triggers the given event.
+        /// </summary>
+        public async Task<ExecutionResult> ExecuteAndNotify(
+            string input,
+            IChannel channel,
+            Func<string, IChannel, Task<ExecutionResult>> action,
+            EventHandler<ExecutedEventArgs> evt
+        ) => await ExecuteAndNotify(
+                input,
+                channel,
+                CancellationToken.None,
+                (input, channel, cancellationToken) => action(input, channel),
+                evt
+            );
 
         /// <summary>
         ///     Executes the given action with the corresponding parameters, and then triggers the given event.
@@ -688,6 +746,24 @@ namespace Microsoft.Jupyter.Core
             string input,
             ISymbol symbol,
             IChannel channel,
+            Func<string, ISymbol, IChannel, Task<ExecutionResult>> action,
+            EventHandler<ExecutedEventArgs> evt
+        ) => await ExecuteAndNotify(
+                input,
+                symbol,
+                channel,
+                CancellationToken.None,
+                (input, symbol, channel, cancellationToken) => action(input, symbol, channel),
+                evt
+            );
+
+        /// <summary>
+        ///     Executes the given action with the corresponding parameters, and then triggers the given event.
+        /// </summary>
+        public async Task<ExecutionResult> ExecuteAndNotify(
+            string input,
+            ISymbol symbol,
+            IChannel channel,
             CancellationToken cancellationToken,
             Func<string, ISymbol, IChannel, CancellationToken, Task<ExecutionResult>> action,
             EventHandler<ExecutedEventArgs> evt
@@ -707,7 +783,7 @@ namespace Microsoft.Jupyter.Core
         [MagicCommand("%history",
             summary: "Displays a list of commands run so far this session."
         )]
-        public async Task<ExecutionResult> ExecuteHistory(string input, IChannel channel, CancellationToken cancellationToken)
+        public async Task<ExecutionResult> ExecuteHistory(string input, IChannel channel)
         {
             return History.ToExecutionResult();
         }
@@ -715,7 +791,7 @@ namespace Microsoft.Jupyter.Core
         [MagicCommand("%version",
             summary: "Displays the version numbers for various components of this kernel."
         )]
-        public async Task<ExecutionResult> ExecuteVersion(string input, IChannel channel, CancellationToken cancellationToken)
+        public async Task<ExecutionResult> ExecuteVersion(string input, IChannel channel)
         {
             var versions = Context.Properties.VersionTable;
             channel.Display(
