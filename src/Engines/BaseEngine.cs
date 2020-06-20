@@ -683,8 +683,7 @@ namespace Microsoft.Jupyter.Core
         ///     as the result of executing the input (e.g.: as the result typeset
         ///     as <c>Out[12]:</c> outputs).
         /// </returns>
-        public virtual Task<ExecutionResult> ExecuteMundane(string input, IChannel channel) =>
-            ExecuteMundane(input, channel, CancellationToken.None);
+        public abstract Task<ExecutionResult> ExecuteMundane(string input, IChannel channel);
 
         /// <summary>
         ///      Executes a given input cell, returning any result from the
