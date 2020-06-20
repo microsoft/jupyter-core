@@ -8,6 +8,7 @@ using MoonSharp.Interpreter;
 using MoonSharp.Interpreter.REPL;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using System.Threading.Tasks;
 
 namespace Microsoft.Jupyter.Core
