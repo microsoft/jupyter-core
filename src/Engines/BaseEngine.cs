@@ -700,8 +700,13 @@ namespace Microsoft.Jupyter.Core
         ///     as the result of executing the input (e.g.: as the result typeset
         ///     as <c>Out[12]:</c> outputs).
         /// </returns>
+        /// <remarks>
+        ///     The default implementation in <see cref="BaseEngine"/> ignores the cancellation token.
+        ///     Derived classes should override this method and monitor the cancellation token if they
+        ///     wish to support cancellation.
+        /// </remarks>
         public virtual Task<ExecutionResult> ExecuteMundane(string input, IChannel channel, CancellationToken cancellationToken)
-            => throw new NotImplementedException();
+            => ExecuteMundane(input, channel);
 
         /// <summary>
         ///     Executes the given action with the corresponding parameters, and then triggers the given event.
