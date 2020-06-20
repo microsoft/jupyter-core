@@ -7,6 +7,8 @@ resources:
 variables:
   Build.Major: 1
   Build.Minor: 4
+  Build.Patch: $(date:yyMM)
+  Build.Revision: $(DayOfMonth)$(rev:rr)
   Build.Configuration: 'Release'
   VersioningScheme: 'byPrereleaseNumber'
 
