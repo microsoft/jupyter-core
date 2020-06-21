@@ -9,7 +9,6 @@ variables:
   Build.Minor: 4
   Build.Patch: $(Build.BuildId)
   Build.Configuration: 'Release'
-  Assembly.Version: $(Build.Major).$(Build.Minor).0.0
   Assembly.Constants: 'SIGNED'
   VersioningScheme: 'byBuildNumber'
   DllsToScan: 'src\bin\Release\*\*.dll'
