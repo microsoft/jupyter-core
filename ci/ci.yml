@@ -9,6 +9,7 @@ variables:
   Build.Minor: 4
   Build.Configuration: 'Release'
   Assembly.Version: $(Build.BuildNumber)
+  Package.Version: $(Build.BuildNumber)-CI
 
 
 jobs:
