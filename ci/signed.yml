@@ -1,4 +1,4 @@
-name: $(Build.Major).$(Build.Minor).$(Date:yyMM).$(DayOfMonth)$(Rev:rr)
+name: $(Build.Major).$(Build.Minor).$(Date:yyMM)$(DayOfMonth)$(Rev:rr)
 trigger:
 - master
 resources:
@@ -7,8 +7,9 @@ resources:
 variables:
   Build.Major: 1
   Build.Minor: 4
+  Build.Patch: $(Date:yyMM)$(DayOfMonth)$(Rev:rr)
   Build.Configuration: 'Release'
-  Assembly.Version: $(Build.BuildNumber)
+  Assembly.Version: $(Build.Major).$(Build.Minor).0.0
   Assembly.Constants: 'SIGNED'
   VersioningScheme: 'byBuildNumber'
   DllsToScan: 'src\bin\Release\*\*.dll'
