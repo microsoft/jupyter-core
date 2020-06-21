@@ -21,4 +21,4 @@ steps:
     command: pack
     configuration: $(Build.Configuration)
     packagesToPack: src/jupyter-core.csproj
-    arguments: '-p:Version=$(Assembly.Version) -p:PackageVersion=$(NuGetPackage.Version)'
+    arguments: '-p:Version=$(Assembly.Version)'
