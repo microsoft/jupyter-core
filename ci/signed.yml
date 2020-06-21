@@ -9,8 +9,8 @@ variables:
   Build.Minor: 4
   Build.Configuration: 'Release'
   Assembly.Version: $(Build.BuildNumber)
-  Package.Version: $(Build.BuildNumber)
   Assembly.Constants: 'SIGNED'
+  VersioningScheme: 'byBuildNumber'
   DllsToScan: 'src\bin\Release\*\*.dll'
 
 jobs:
