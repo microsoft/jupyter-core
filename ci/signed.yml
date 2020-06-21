@@ -1,4 +1,4 @@
-name: $(Build.Major).$(Build.Minor).$(Date:yyMM)$(DayOfMonth)$(Rev:rr)
+name: $(Build.Major).$(Build.Minor).$(BuildId)
 trigger:
 - master
 resources:
