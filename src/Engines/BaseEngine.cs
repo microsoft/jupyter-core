@@ -413,8 +413,12 @@ namespace Microsoft.Jupyter.Core
         public virtual void Start()
         {
             this.ShellServer.KernelInfoRequest += OnKernelInfoRequest;
-            this.ShellServer.InterruptRequest += OnInterruptRequest;
             this.ShellServer.ShutdownRequest += OnShutdownRequest;
+
+            if (this.ShellServer is IShellServerSupportsInterrupt shellServerSupportsInterrupt)
+            {
+                shellServerSupportsInterrupt.InterruptRequest += OnInterruptRequest;
+            }
             
             Logger.LogDebug("Registering execution handler service.");
             this.ShellRouter.RegisterHandler(new ExecuteRequestHandler(this, serviceProvider));

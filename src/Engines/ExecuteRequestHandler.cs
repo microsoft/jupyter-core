@@ -54,7 +54,12 @@ namespace Microsoft.Jupyter.Core
             using (var cancellationTokenSource = new CancellationTokenSource())
             {
                 Action<Message> onInterruptRequest = (message) => cancellationTokenSource.Cancel();
-                this.shellServer.InterruptRequest += onInterruptRequest;
+
+                var shellServerSupportsInterrupt = this.shellServer as IShellServerSupportsInterrupt;
+                if (shellServerSupportsInterrupt != null)
+                {
+                    shellServerSupportsInterrupt.InterruptRequest += onInterruptRequest;
+                }
 
                 try
                 {
@@ -66,7 +71,10 @@ namespace Microsoft.Jupyter.Core
                 }
                 finally
                 {
-                    this.shellServer.InterruptRequest -= onInterruptRequest;
+                    if (shellServerSupportsInterrupt != null)
+                    {
+                        shellServerSupportsInterrupt.InterruptRequest -= onInterruptRequest;
+                    }
                 }
             }
             

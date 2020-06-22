@@ -16,7 +16,7 @@ using System.Threading.Tasks;
 
 namespace Microsoft.Jupyter.Core
 {
-    public class ShellServer : IDisposable, IShellServer
+    public class ShellServer : IDisposable, IShellServerSupportsInterrupt
     {
 
         // A shell server works by using a request-reply pattern, as documented
