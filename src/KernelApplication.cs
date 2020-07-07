@@ -450,11 +450,9 @@ namespace Microsoft.Jupyter.Core
 
             // Make a temporary directory to hold the kernel spec.
             var tempKernelSpecDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
-            var filesToDelete = new List<string>();
             var jsonPath = Path.Combine(tempKernelSpecDir, "kernel.json");
             Directory.CreateDirectory(tempKernelSpecDir);
             File.WriteAllText(jsonPath, JsonConvert.SerializeObject(kernelSpec));
-            filesToDelete.Add(jsonPath);
             kernelSpecDir = tempKernelSpecDir;
 
             // Add any additional files we may need.
@@ -464,11 +462,12 @@ namespace Microsoft.Jupyter.Core
                 {
                     var dest = Path.Combine(tempKernelSpecDir, fileName);
                     var sourceStream = streamAction();
+                    // Create nested directory
+                    Directory.CreateDirectory(Path.GetDirectoryName(dest));
                     using (var destStream = File.OpenWrite(dest))
                     {
                         sourceStream.CopyTo(destStream);
                     }
-                    filesToDelete.Add(dest);
                 }
             }
 
@@ -519,16 +518,9 @@ namespace Microsoft.Jupyter.Core
             }
 
             process?.WaitForExit();
-
-            foreach (var fileName in filesToDelete)
-            {
-                try
-                {
-                    File.Delete(fileName);
-                }
-                catch { }
-            }
-            Directory.Delete(tempKernelSpecDir);
+            
+            // Recursively delete all files and subdirectories in temp directory.
+            Directory.Delete(tempKernelSpecDir, true);
             return process?.ExitCode ?? -1;
         }
 
