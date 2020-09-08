@@ -18,6 +18,7 @@ namespace Microsoft.Jupyter.Core
         private Task<TResult?>? currentTask = null;
 
         private int taskDepth = 0;
+        private readonly object taskDepthLock = new object();
 
         protected virtual ILogger? Logger { get; set; } = null;
 
@@ -29,16 +30,26 @@ namespace Microsoft.Jupyter.Core
             Logger?.LogDebug("Handing {MessageType} with ordered shell handler.", message.Header.MessageType);
             currentTask = new Task<TResult?>((state) =>
             {
-                taskDepth++;
+                lock (taskDepthLock)
+                {
+                    taskDepth++;
+                }
                 var previousTask = (Task<TResult?>?)state;
                 var previousResult = previousTask?.Result;
-                var currentResult = HandleAsync(message, previousResult).Result;
-                taskDepth--;
-                if (taskDepth == 0)
-                {
-                    currentTask = null;
-                }
-                return currentResult;
+                return HandleAsync(message, previousResult)
+                    .ContinueWith<TResult>((task) =>
+                    {
+                        lock (taskDepthLock)
+                        {
+                            taskDepth--;
+                            if (taskDepth == 0)
+                            {
+                                currentTask = null;
+                            }
+                        }
+                        return task.Result;
+                    })
+                    .Result;
             }, currentTask);
             currentTask.Start();
             return currentTask;
