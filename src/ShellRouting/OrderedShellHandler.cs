@@ -18,7 +18,6 @@ namespace Microsoft.Jupyter.Core
         private Task<TResult?>? currentTask = null;
 
         private int taskDepth = 0;
-        private readonly object taskDepthLock = new object();
 
         protected virtual ILogger? Logger { get; set; } = null;
 
@@ -28,31 +27,27 @@ namespace Microsoft.Jupyter.Core
         public Task HandleAsync(Message message)
         {
             Logger?.LogDebug("Handing {MessageType} with ordered shell handler.", message.Header.MessageType);
-            currentTask = new Task<TResult?>((state) =>
+            lock (this)
             {
-                lock (taskDepthLock)
+                taskDepth++;
+                currentTask = new Task<TResult?>((state) =>
                 {
-                    taskDepth++;
-                }
-                var previousTask = (Task<TResult?>?)state;
-                var previousResult = previousTask?.Result;
-                return HandleAsync(message, previousResult)
-                    .ContinueWith<TResult>((task) =>
+                    lock (this)
                     {
-                        lock (taskDepthLock)
+                        var previousTask = (Task<TResult?>?)state;
+                        var previousResult = previousTask?.Result;
+                        var currentResult = HandleAsync(message, previousResult).Result;
+                        taskDepth--;
+                        if (taskDepth == 0)
                         {
-                            taskDepth--;
-                            if (taskDepth == 0)
-                            {
-                                currentTask = null;
-                            }
+                            currentTask = null;
                         }
-                        return task.Result;
-                    })
-                    .Result;
-            }, currentTask);
-            currentTask.Start();
-            return currentTask;
+                        return currentResult;
+                    }
+                }, currentTask);
+                currentTask.Start();
+                return currentTask;
+            }
         }
     }
 }
