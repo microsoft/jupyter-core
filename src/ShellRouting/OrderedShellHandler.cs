@@ -5,6 +5,7 @@
 
 using System;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -27,9 +28,9 @@ namespace Microsoft.Jupyter.Core
         public Task HandleAsync(Message message)
         {
             Logger?.LogDebug("Handing {MessageType} with ordered shell handler.", message.Header.MessageType);
+            Interlocked.Increment(ref taskDepth);
             lock (this)
             {
-                taskDepth++;
                 currentTask = new Task<TResult?>((state) =>
                 {
                     lock (this)
@@ -37,7 +38,7 @@ namespace Microsoft.Jupyter.Core
                         var previousTask = (Task<TResult?>?)state;
                         var previousResult = previousTask?.Result;
                         var currentResult = HandleAsync(message, previousResult).Result;
-                        taskDepth--;
+                        Interlocked.Decrement(ref taskDepth);
                         if (taskDepth == 0)
                         {
                             currentTask = null;
