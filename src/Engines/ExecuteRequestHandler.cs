@@ -103,8 +103,8 @@ namespace Microsoft.Jupyter.Core
             }
 
             // Invoke the onHandled callback prior to sending the execute_reply message.
-            // This guarantees that the OrderedShellHandler correctly clears this task from its
-            // currentTask reference *before* any new task that the client may submit for
+            // This guarantees that the OrderedShellHandler correctly processes the completion
+            // of this task *before* any processing new task that the client may submit for
             // execution immediately upon receiving the execute_reply message.
             onHandled();
 
