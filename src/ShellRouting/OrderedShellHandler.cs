@@ -4,6 +4,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,9 +17,7 @@ namespace Microsoft.Jupyter.Core
     public abstract class OrderedShellHandler<TResult> : IShellHandler
     where TResult: struct
     {
-        private Task<TResult?>? currentTask = null;
-
-        private int taskDepth = 0;
+        private ConcurrentQueue<Task<TResult?>> taskQueue = new ConcurrentQueue<Task<TResult?>>();
 
         protected virtual ILogger? Logger { get; set; } = null;
 
@@ -30,36 +29,31 @@ namespace Microsoft.Jupyter.Core
         public Task HandleAsync(Message message)
         {
             Logger?.LogDebug("Handing {MessageType} with ordered shell handler.", message.Header.MessageType);
-            Interlocked.Increment(ref taskDepth);
-            // lock to synchronize read/write access to this.currentTask
-            lock (this)
+
+            var previousTask = taskQueue.LastOrDefault();
+            var task = new Task<TResult?>(() =>
             {
-                var previousTask = currentTask;
-                currentTask = new Task<TResult?>(() =>
+                // lock to serialize task execution
+                lock (this)
                 {
-                    // lock to synchronize read/write access to this.currentTask
-                    lock (this)
+                    var handled = false;
+                    Action onHandled = () =>
                     {
-                        var handled = false;
-                        Action onHandled = () =>
-                        {
-                            handled = true;
-                            if (Interlocked.Decrement(ref taskDepth) == 0)
-                            {
-                                currentTask = null;
-                            }
-                        };
-                        var currentResult = HandleAsync(message, previousTask?.Result, onHandled).Result;
-                        if (!handled)
-                        {
-                            onHandled();
-                        }
-                        return currentResult;
+                        handled = true;
+                        taskQueue.TryDequeue(out var task);
+                    };
+                    var currentResult = HandleAsync(message, previousTask?.Result, onHandled).Result;
+                    if (!handled)
+                    {
+                        onHandled();
                     }
-                });
-                currentTask.Start();
-                return currentTask;
-            }
+                    return currentResult;
+                }
+            });
+
+            taskQueue.Enqueue(task);
+            task.Start();
+            return task;
         }
     }
 }
