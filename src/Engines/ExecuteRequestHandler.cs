@@ -47,7 +47,7 @@ namespace Microsoft.Jupyter.Core
 
         public override string MessageType => "execute_request";
         
-        protected async virtual Task<ExecutionResult> ExecutionTaskForMessage(Message message, int executionCount)
+        protected async virtual Task<ExecutionResult> ExecutionTaskForMessage(Message message, int executionCount, Action onHandled)
         {
             var engineResponse = ExecutionResult.Aborted;
 
@@ -101,6 +101,12 @@ namespace Microsoft.Jupyter.Core
                     }
                 );
             }
+
+            // Invoke the onHandled callback prior to sending the execute_reply message.
+            // This guarantees that the OrderedShellHandler correctly clears this task from its
+            // currentTask reference *before* any new task that the client may submit for
+            // execution immediately upon receiving the execute_reply message.
+            onHandled();
 
             // Handle the message.
             this.shellServer.SendShellMessage(
@@ -188,7 +194,10 @@ namespace Microsoft.Jupyter.Core
             }
         }
 
-        public override async Task<ExecutionResult> HandleAsync(Message message, ExecutionResult? previousResult)
+        public override async Task<ExecutionResult> HandleAsync(Message message, ExecutionResult? previousResult) =>
+            await HandleAsync(message, previousResult, () => {});
+
+        public override async Task<ExecutionResult> HandleAsync(Message message, ExecutionResult? previousResult, Action onHandled)
         {
             this.logger.LogDebug($"Asked to execute code:\n{((ExecuteRequestContent)message.Content).Code}");
 
@@ -204,7 +213,7 @@ namespace Microsoft.Jupyter.Core
 
             try
             {
-                var result = await ExecutionTaskForMessage(message, executionCount);
+                var result = await ExecutionTaskForMessage(message, executionCount, onHandled);
                 return result;
             }
             catch (Exception e)
