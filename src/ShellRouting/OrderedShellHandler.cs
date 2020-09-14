@@ -31,31 +31,35 @@ namespace Microsoft.Jupyter.Core
         {
             Logger?.LogDebug("Handing {MessageType} with ordered shell handler.", message.Header.MessageType);
             Interlocked.Increment(ref taskDepth);
-            var previousTask = currentTask;
-            currentTask = new Task<TResult?>(() =>
+            // lock to synchronize read/write access to this.currentTask
+            lock (this)
             {
-                // lock to ensure serial execution of tasks
-                lock (this)
+                var previousTask = currentTask;
+                currentTask = new Task<TResult?>(() =>
                 {
-                    var handled = false;
-                    Action onHandled = () =>
+                    // lock to synchronize read/write access to this.currentTask
+                    lock (this)
                     {
-                        handled = true;
-                        if (Interlocked.Decrement(ref taskDepth) == 0)
+                        var handled = false;
+                        Action onHandled = () =>
                         {
-                            currentTask = null;
+                            handled = true;
+                            if (Interlocked.Decrement(ref taskDepth) == 0)
+                            {
+                                currentTask = null;
+                            }
+                        };
+                        var currentResult = HandleAsync(message, previousTask?.Result, onHandled).Result;
+                        if (!handled)
+                        {
+                            onHandled();
                         }
-                    };
-                    var currentResult = HandleAsync(message, previousTask?.Result, onHandled).Result;
-                    if (!handled)
-                    {
-                        onHandled();
+                        return currentResult;
                     }
-                    return currentResult;
-                }
-            });
-            currentTask.Start();
-            return currentTask;
+                });
+                currentTask.Start();
+                return currentTask;
+            }
         }
     }
 }
