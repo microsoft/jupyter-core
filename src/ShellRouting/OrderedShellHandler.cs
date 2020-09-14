@@ -4,9 +4,7 @@
 #nullable enable
 
 using System;
-using System.Collections.Concurrent;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -17,7 +15,9 @@ namespace Microsoft.Jupyter.Core
     public abstract class OrderedShellHandler<TResult> : IShellHandler
     where TResult: struct
     {
-        private ConcurrentQueue<Task<TResult?>> taskQueue = new ConcurrentQueue<Task<TResult?>>();
+        private Task<TResult?>? currentTask = null;
+
+        private int taskDepth = 0;
 
         protected virtual ILogger? Logger { get; set; } = null;
 
@@ -29,31 +29,23 @@ namespace Microsoft.Jupyter.Core
         public Task HandleAsync(Message message)
         {
             Logger?.LogDebug("Handing {MessageType} with ordered shell handler.", message.Header.MessageType);
-
-            var previousTask = taskQueue.LastOrDefault();
-            var task = new Task<TResult?>(() =>
+            currentTask = new Task<TResult?>((state) =>
             {
-                // lock to serialize task execution
-                lock (this)
-                {
-                    var handled = false;
-                    Action onHandled = () =>
+                taskDepth++;
+                var previousTask = (Task<TResult?>?)state;
+                var previousResult = previousTask?.Result;
+                var currentResult = HandleAsync(message, previousResult, () =>
+                {                    
+                    taskDepth--;
+                    if (taskDepth == 0)
                     {
-                        handled = true;
-                        taskQueue.TryDequeue(out var task);
-                    };
-                    var currentResult = HandleAsync(message, previousTask?.Result, onHandled).Result;
-                    if (!handled)
-                    {
-                        onHandled();
+                        currentTask = null;
                     }
-                    return currentResult;
-                }
-            });
-
-            taskQueue.Enqueue(task);
-            task.Start();
-            return task;
+                }).Result;
+                return currentResult;
+            }, currentTask);
+            currentTask.Start();
+            return currentTask;
         }
     }
 }
