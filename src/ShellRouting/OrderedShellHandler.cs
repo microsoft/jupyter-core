@@ -37,7 +37,7 @@ namespace Microsoft.Jupyter.Core
                 // lock to ensure serial execution of tasks
                 lock (this)
                 {
-                    var previousResult = Interlocked.Equals(taskDepth, 0) ? null : previousTask?.Result;
+                    var previousResult = Interlocked.Equals(taskDepth, 1) ? null : previousTask?.Result;
                     return HandleAsync(message, previousResult, () => Interlocked.Decrement(ref taskDepth)).Result;
                 }
             });
