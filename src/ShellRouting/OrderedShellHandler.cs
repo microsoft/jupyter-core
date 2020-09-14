@@ -5,7 +5,6 @@
 
 using System;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -28,17 +27,23 @@ namespace Microsoft.Jupyter.Core
         public Task HandleAsync(Message message)
         {
             Logger?.LogDebug("Handing {MessageType} with ordered shell handler.", message.Header.MessageType);
-            Interlocked.Increment(ref taskDepth);
+            // lock to synchronize read/write access to this.currentTask and this.taskDepth
             lock (this)
             {
                 currentTask = new Task<TResult?>((state) =>
                 {
+                    // lock to synchronize read/write access to this.currentTask and this.taskDepth
                     lock (this)
                     {
-                        var previousTask = (Task<TResult?>?)state;
-                        var previousResult = previousTask?.Result;
-                        var currentResult = HandleAsync(message, previousResult).Result;
-                        Interlocked.Decrement(ref taskDepth);
+                        taskDepth++;
+                    }
+                    var previousTask = (Task<TResult?>?)state;
+                    var previousResult = previousTask?.Result;
+                    var currentResult = HandleAsync(message, previousResult).Result;
+                    // lock to synchronize read/write access to this.currentTask and this.taskDepth
+                    lock (this)
+                    {
+                        taskDepth--;
                         if (taskDepth == 0)
                         {
                             currentTask = null;
