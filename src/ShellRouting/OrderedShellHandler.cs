@@ -34,14 +34,22 @@ namespace Microsoft.Jupyter.Core
                 taskDepth++;
                 var previousTask = (Task<TResult?>?)state;
                 var previousResult = previousTask?.Result;
-                var currentResult = HandleAsync(message, previousResult, () =>
-                {                    
+
+                var handled = false;
+                Action onHandled = () =>
+                {
+                    handled = true;
                     taskDepth--;
                     if (taskDepth == 0)
                     {
                         currentTask = null;
                     }
-                }).Result;
+                };
+                var currentResult = HandleAsync(message, previousResult, onHandled).Result;
+                if (!handled)
+                {
+                    onHandled();
+                }
                 return currentResult;
             }, currentTask);
             currentTask.Start();
