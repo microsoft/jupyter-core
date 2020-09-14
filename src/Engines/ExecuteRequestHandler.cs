@@ -204,6 +204,7 @@ namespace Microsoft.Jupyter.Core
             if (previousResult != null && previousResult.Value.Status != ExecuteStatus.Ok)
             {
                 this.logger.LogDebug("Aborting due to previous execution result indicating failure: {PreviousResult}", previousResult.Value);
+                onHandled();
                 await SendAbortMessage(message);
                 return ExecutionResult.Aborted;
             }
