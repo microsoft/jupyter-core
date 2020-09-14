@@ -23,6 +23,8 @@ namespace Microsoft.Jupyter.Core
 
         public abstract string MessageType { get; }
         public abstract Task<TResult> HandleAsync(Message message, TResult? previousResult);
+        public virtual Task<TResult> HandleAsync(Message message, TResult? previousResult, Action onHandled) =>
+            HandleAsync(message, previousResult);
 
         public Task HandleAsync(Message message)
         {
@@ -32,11 +34,21 @@ namespace Microsoft.Jupyter.Core
                 taskDepth++;
                 var previousTask = (Task<TResult?>?)state;
                 var previousResult = previousTask?.Result;
-                var currentResult = HandleAsync(message, previousResult).Result;
-                taskDepth--;
-                if (taskDepth == 0)
+
+                var handled = false;
+                Action onHandled = () =>
                 {
-                    currentTask = null;
+                    handled = true;
+                    taskDepth--;
+                    if (taskDepth == 0)
+                    {
+                        currentTask = null;
+                    }
+                };
+                var currentResult = HandleAsync(message, previousResult, onHandled).Result;
+                if (!handled)
+                {
+                    onHandled();
                 }
                 return currentResult;
             }, currentTask);
