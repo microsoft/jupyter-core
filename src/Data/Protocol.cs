@@ -171,6 +171,16 @@ namespace Microsoft.Jupyter.Core.Protocol
     }
 
     [JsonObject(MemberSerialization.OptIn)]
+    public class ExecuteInputContent : MessageContent
+    {
+        [JsonProperty("code")]
+        public string Code { get; set; }
+
+        [JsonProperty("execution_count")]
+        public int ExecutionCount { get; set; }
+    }
+
+    [JsonObject(MemberSerialization.OptIn)]
     public class ExecuteReplyContent : MessageContent
     {
         [JsonProperty("status")]
