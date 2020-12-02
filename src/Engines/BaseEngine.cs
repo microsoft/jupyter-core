@@ -471,6 +471,21 @@ namespace Microsoft.Jupyter.Core
                         }
                     }
                 );
+
+                // Finish by telling the client that we're free.
+                this.ShellServer.SendIoPubMessage(
+                    new Message
+                    {
+                        Header = new MessageHeader
+                        {
+                            MessageType = "status"
+                        },
+                        Content = new KernelStatusContent
+                        {
+                            ExecutionState = ExecutionState.Idle
+                        }
+                    }.AsReplyTo(message)
+                );
             }
             catch (Exception e)
             {

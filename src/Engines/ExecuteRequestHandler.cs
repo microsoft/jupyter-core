@@ -51,6 +51,26 @@ namespace Microsoft.Jupyter.Core
         {
             var engineResponse = ExecutionResult.Aborted;
 
+            var code = (message.Content as ExecuteRequestContent)?.Code ?? string.Empty;
+
+            this.shellServer.SendIoPubMessage(
+                new Message
+                {
+                    ZmqIdentities = message.ZmqIdentities,
+                    ParentHeader = message.Header,
+                    Metadata = null,
+                    Content = new ExecuteInputContent
+                    {
+                        Code = code,
+                        ExecutionCount = executionCount
+                    },
+                    Header = new MessageHeader
+                    {
+                        MessageType = "execute_input"
+                    }
+                }
+            );
+
             using (var cancellationTokenSource = new CancellationTokenSource())
             {
                 Action<Message> onInterruptRequest = (message) => cancellationTokenSource.Cancel();
@@ -64,7 +84,7 @@ namespace Microsoft.Jupyter.Core
                 try
                 {
                     engineResponse = await engine.Execute(
-                        ((ExecuteRequestContent)message.Content).Code,
+                        code,
                         new BaseEngine.ExecutionChannel(engine, message),
                         cancellationTokenSource.Token
                     );
