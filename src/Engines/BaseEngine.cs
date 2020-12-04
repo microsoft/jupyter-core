@@ -289,7 +289,24 @@ namespace Microsoft.Jupyter.Core
         ///      into JSON.
         /// </param>
         public void RegisterJsonEncoder(params JsonConverter[] converters) =>
-            RegisterDisplayEncoder(new JsonResultEncoder(this.Logger, converters));
+            RegisterJsonEncoder(null, converters);
+
+        /// <summary>
+        ///      Adds a new result encoder that serializes its output to JSON.
+        ///      Serialization failures are logged, but are not written out
+        ///      as results or displayed.
+        /// </summary>
+        /// <param name="mimeType">
+        ///      MIME type string to be used for this encoded output in the
+        ///      execution result. If null, a default of "application/json"
+        ///      will be used.
+        /// </param>
+        /// <param name="converters">
+        ///      Additional JSON converters to be used when serializing results
+        ///      into JSON.
+        /// </param>
+        public void RegisterJsonEncoder(string mimeType, params JsonConverter[] converters) =>
+            RegisterDisplayEncoder(new JsonResultEncoder(this.Logger, converters, mimeType));
 
         /// <summary>
         ///      Registers a default set of result encoders that is sufficient

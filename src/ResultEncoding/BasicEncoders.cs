@@ -12,13 +12,15 @@ namespace Microsoft.Jupyter.Core
     {
         private readonly ILogger logger;
         private readonly JsonConverter[] converters;
+        private readonly string mimeType;
 
-        public string MimeType => MimeTypes.Json;
+        public string MimeType => mimeType;
 
-        public JsonResultEncoder(ILogger logger = null, JsonConverter[] converters = null)
+        public JsonResultEncoder(ILogger logger = null, JsonConverter[] converters = null, string mimeType = null)
         {
             this.logger = logger;
             this.converters = converters ?? new JsonConverter[] {};
+            this.mimeType = mimeType ?? MimeTypes.Json;
         }
 
         public EncodedData? Encode(object displayable)
