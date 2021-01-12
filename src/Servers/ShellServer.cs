@@ -67,9 +67,9 @@ namespace Microsoft.Jupyter.Core
             this.provider = provider;
             this.router = router;
 
-            router.RegisterHandler("kernel_info_request", async message => KernelInfoRequest?.Invoke(message));
+            router.RegisterHandler("kernel_info_request", async message => OnKernelInfoRequest(message));
             router.RegisterHandler("interrupt_request", async message => InterruptRequest?.Invoke(message));
-            router.RegisterHandler("shutdown_request", async message => ShutdownRequest?.Invoke(message));
+            router.RegisterHandler("shutdown_request", async message => OnShutdownRequest(message));
         }
 
         public void Start()
@@ -152,6 +152,66 @@ namespace Microsoft.Jupyter.Core
                     if (alive) continue; else return;
                 }
             }
+        }
+
+        /// <summary>
+        ///       Called by shell servers to report kernel information to the
+        ///       client. By default, this method responds by converting
+        ///       the kernel properties stored in this engine's context to a
+        ///       <c>kernel_info</c> Jupyter message.
+        /// </summary>
+        /// <param name="message">The original request from the client.</param>
+        public virtual void OnKernelInfoRequest(Message message)
+        {
+            // Before handling the kernel info request, make sure to call any
+            // events for custom handling.
+            KernelInfoRequest?.Invoke(message);
+
+            try
+            {
+                this.SendShellMessage(
+                    new Message
+                    {
+                        ZmqIdentities = message.ZmqIdentities,
+                        ParentHeader = message.Header,
+                        Metadata = null,
+                        Content = this.context.Properties.AsKernelInfoReply(),
+                        Header = new MessageHeader
+                        {
+                            MessageType = "kernel_info_reply",
+                            Id = Guid.NewGuid().ToString(),
+                            ProtocolVersion = "5.2.0"
+                        }
+                    }
+                );
+
+                // Finish by telling the client that we're free.
+                this.SendIoPubMessage(
+                    new Message
+                    {
+                        Header = new MessageHeader
+                        {
+                            MessageType = "status"
+                        },
+                        Content = new KernelStatusContent
+                        {
+                            ExecutionState = ExecutionState.Idle
+                        }
+                    }.AsReplyTo(message)
+                );
+            }
+            catch (Exception e)
+            {
+                this.logger?.LogError(e, "Unable to process KernelInfoRequest");
+            }
+        }
+
+        public virtual void OnShutdownRequest(Message message)
+        {
+            // Before shutting down, call any event set by the
+            // engine.
+            ShutdownRequest?.Invoke(message);
+            System.Environment.Exit(0);
         }
 
         #region IDisposable Support
