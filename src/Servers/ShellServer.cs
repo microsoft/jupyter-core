@@ -163,6 +163,10 @@ namespace Microsoft.Jupyter.Core
         /// <param name="message">The original request from the client.</param>
         public virtual void OnKernelInfoRequest(Message message)
         {
+            // Before handling the kernel info request, make sure to call any
+            // events for custom handling.
+            KernelInfoRequest?.Invoke(message);
+
             try
             {
                 this.SendShellMessage(
