@@ -429,9 +429,6 @@ namespace Microsoft.Jupyter.Core
 
         public virtual void Start()
         {
-            this.ShellServer.KernelInfoRequest += OnKernelInfoRequest;
-            this.ShellServer.ShutdownRequest += OnShutdownRequest;
-
             if (this.ShellServer is IShellServerSupportsInterrupt shellServerSupportsInterrupt)
             {
                 shellServerSupportsInterrupt.InterruptRequest += OnInterruptRequest;
@@ -444,54 +441,6 @@ namespace Microsoft.Jupyter.Core
         #endregion
 
         #region Event Handlers
-
-        /// <summary>
-        ///       Called by shell servers to report kernel information to the
-        ///       client. By default, this method responds by converting
-        ///       the kernel properties stored in this engine's context to a
-        ///       <c>kernel_info</c> Jupyter message.
-        /// </summary>
-        /// <param name="message">The original request from the client.</param>
-        public virtual void OnKernelInfoRequest(Message message)
-        {
-            try
-            {
-                this.ShellServer.SendShellMessage(
-                    new Message
-                    {
-                        ZmqIdentities = message.ZmqIdentities,
-                        ParentHeader = message.Header,
-                        Metadata = null,
-                        Content = this.Context.Properties.AsKernelInfoReply(),
-                        Header = new MessageHeader
-                        {
-                            MessageType = "kernel_info_reply",
-                            Id = Guid.NewGuid().ToString(),
-                            ProtocolVersion = "5.2.0"
-                        }
-                    }
-                );
-
-                // Finish by telling the client that we're free.
-                this.ShellServer.SendIoPubMessage(
-                    new Message
-                    {
-                        Header = new MessageHeader
-                        {
-                            MessageType = "status"
-                        },
-                        Content = new KernelStatusContent
-                        {
-                            ExecutionState = ExecutionState.Idle
-                        }
-                    }.AsReplyTo(message)
-                );
-            }
-            catch (Exception e)
-            {
-                this.Logger?.LogError(e, "Unable to process KernelInfoRequest");
-            }
-        }
 
         /// <summary>
         ///       Called by shell servers to request cancellation of any
@@ -524,11 +473,6 @@ namespace Microsoft.Jupyter.Core
             {
                 this.Logger?.LogError(e, "Unable to process InterruptRequest");
             }
-        }
-
-        public virtual void OnShutdownRequest(Message message)
-        {
-            System.Environment.Exit(0);
         }
 
         #endregion

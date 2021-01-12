@@ -6,7 +6,7 @@ resources:
   - repository: self
 variables:
   Build.Major: 1
-  Build.Minor: 4
+  Build.Minor: 5
   Build.Patch: $(Build.BuildId)
   Build.Configuration: 'Release'
   VersioningScheme: 'byPrereleaseNumber'
