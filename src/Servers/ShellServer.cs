@@ -154,8 +154,6 @@ namespace Microsoft.Jupyter.Core
             }
         }
 
-        
-
         /// <summary>
         ///       Called by shell servers to report kernel information to the
         ///       client. By default, this method responds by converting
@@ -167,10 +165,6 @@ namespace Microsoft.Jupyter.Core
         {
             try
             {
-                // Before sending the kernel info, call any event set by the
-                // engine.
-                KernelInfoRequest?.Invoke(message);
-
                 this.SendShellMessage(
                     new Message
                     {
@@ -185,6 +179,21 @@ namespace Microsoft.Jupyter.Core
                             ProtocolVersion = "5.2.0"
                         }
                     }
+                );
+
+                // Finish by telling the client that we're free.
+                this.SendIoPubMessage(
+                    new Message
+                    {
+                        Header = new MessageHeader
+                        {
+                            MessageType = "status"
+                        },
+                        Content = new KernelStatusContent
+                        {
+                            ExecutionState = ExecutionState.Idle
+                        }
+                    }.AsReplyTo(message)
                 );
             }
             catch (Exception e)
