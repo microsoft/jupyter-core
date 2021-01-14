@@ -64,6 +64,7 @@ namespace Microsoft.Jupyter.Core
         public void RegisterFallback(Func<Message, Task?> fallback) =>
             this.fallback = fallback;
 
+        /// <inheritdoc />
         public void RegisterHandlers<TAssembly>()
         {
             var handlers = typeof(TAssembly)

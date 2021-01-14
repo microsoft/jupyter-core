@@ -604,27 +604,55 @@ namespace Microsoft.Jupyter.Core
 
             // Minimally, we need to start a server for each of the heartbeat,
             // control and shell sockets.
-            var scope = logger.BeginScope("Starting kernel services");
-            logger.LogDebug("Getting heartbeat service.");
-            var heartbeatServer = serviceProvider.GetService<IHeartbeatServer>();
-            logger.LogDebug("Getting shell service.");
-            var shellServer = serviceProvider.GetService<IShellServer>();
-            logger.LogDebug("Getting engine service.");
-            var engine = serviceProvider.GetService<IExecutionEngine>();
-
-            shellServer.ShutdownRequest += OnShutdownRequest;
-
             // We start by launching a heartbeat server, which echoes whatever
             // input it gets from the client. Clients can use this to ensure
             // that the kernel is still alive and responsive.
-            logger.LogDebug("Starting engine service.");
-            engine.Start();
-            logger.LogDebug("Starting heartbeat service.");
-            heartbeatServer.Start();
-            logger.LogDebug("Starting shell service.");
-            shellServer.Start();
+            using (logger.BeginScope("Starting kernel services"))
+            {
+                logger.LogDebug("Getting and starting heartbeat service.");
+                serviceProvider.GetService<IHeartbeatServer>().Start();
 
-            scope.Dispose();
+                logger.LogDebug("Getting and starting shell service.");
+                var shellServer = serviceProvider.GetService<IShellServer>();
+                shellServer.ShutdownRequest += OnShutdownRequest;
+                shellServer.Start();
+
+                // Tell the client that we are starting the engine.
+                shellServer.SendIoPubMessage(
+                    new Message
+                    {
+                        Header = new MessageHeader
+                        {
+                            MessageType = "status"
+                        },
+                        Content = new KernelStatusContent
+                        {
+                            ExecutionState = ExecutionState.Starting
+                        }
+                    }
+                );
+
+                logger.LogDebug("Getting engine service.");
+                var engine = serviceProvider.GetService<IExecutionEngine>();
+                logger.LogDebug("Starting engine service.");
+                engine.Start();
+
+                // Once finished, have the shell server report that we are
+                // idle.
+                shellServer.SendIoPubMessage(
+                    new Message
+                    {
+                        Header = new MessageHeader
+                        {
+                            MessageType = "status"
+                        },
+                        Content = new KernelStatusContent
+                        {
+                            ExecutionState = ExecutionState.Idle
+                        }
+                    }
+                );
+            }
 
             KernelStarted?.Invoke(serviceProvider);
 
