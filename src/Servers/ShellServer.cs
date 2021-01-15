@@ -182,6 +182,7 @@ namespace Microsoft.Jupyter.Core
                             ExecutionState = ExecutionState.Busy
                         }
                     }
+                    .AsReplyTo(message)
                 );
 
                 this.SendShellMessage(
@@ -214,6 +215,7 @@ namespace Microsoft.Jupyter.Core
                             ExecutionState = ExecutionState.Idle
                         }
                     }
+                    .AsReplyTo(message)
                 );
             }
             catch (Exception e)
