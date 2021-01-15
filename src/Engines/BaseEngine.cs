@@ -427,6 +427,13 @@ namespace Microsoft.Jupyter.Core
 
         #region Lifecycle
 
+        /// <summary>
+        ///     Task that completes when and only when the engine is fully
+        ///     ready to execute inputs. After awaiting this task, the engine
+        ///     is guaranteed to be fully initialized.
+        /// </summary>
+        public virtual Task Initialized => Task.CompletedTask;
+
         public virtual void Start()
         {
             if (this.ShellServer is IShellServerSupportsInterrupt shellServerSupportsInterrupt)

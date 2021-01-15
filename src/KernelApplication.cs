@@ -636,22 +636,6 @@ namespace Microsoft.Jupyter.Core
                 var engine = serviceProvider.GetService<IExecutionEngine>();
                 logger.LogDebug("Starting engine service.");
                 engine.Start();
-
-                // Once finished, have the shell server report that we are
-                // idle.
-                shellServer.SendIoPubMessage(
-                    new Message
-                    {
-                        Header = new MessageHeader
-                        {
-                            MessageType = "status"
-                        },
-                        Content = new KernelStatusContent
-                        {
-                            ExecutionState = ExecutionState.Idle
-                        }
-                    }
-                );
             }
 
             KernelStarted?.Invoke(serviceProvider);
