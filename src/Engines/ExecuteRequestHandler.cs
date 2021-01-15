@@ -81,6 +81,9 @@ namespace Microsoft.Jupyter.Core
                     shellServerSupportsInterrupt.InterruptRequest += onInterruptRequest;
                 }
 
+                // Make sure that the engine is fully initialized.
+                await engine.Initialized;
+
                 try
                 {
                     engineResponse = await engine.Execute(

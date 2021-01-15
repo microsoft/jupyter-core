@@ -169,6 +169,21 @@ namespace Microsoft.Jupyter.Core
 
             try
             {
+                // Tell the client we're about to handle their kernel_info_request.
+                this.SendIoPubMessage(
+                    new Message
+                    {
+                        Header = new MessageHeader
+                        {
+                            MessageType = "status"
+                        },
+                        Content = new KernelStatusContent
+                        {
+                            ExecutionState = ExecutionState.Busy
+                        }
+                    }
+                );
+
                 this.SendShellMessage(
                     new Message
                     {
@@ -181,6 +196,22 @@ namespace Microsoft.Jupyter.Core
                             MessageType = "kernel_info_reply",
                             Id = Guid.NewGuid().ToString(),
                             ProtocolVersion = "5.2.0"
+                        }
+                    }
+                );
+
+                // Once finished, have the shell server report that we are
+                // idle.
+                this.SendIoPubMessage(
+                    new Message
+                    {
+                        Header = new MessageHeader
+                        {
+                            MessageType = "status"
+                        },
+                        Content = new KernelStatusContent
+                        {
+                            ExecutionState = ExecutionState.Idle
                         }
                     }
                 );
