@@ -607,6 +607,11 @@ namespace Microsoft.Jupyter.Core
                 // Return the most recently-obtained result.
                 return result;
             }
+            catch (TaskCanceledException)
+            {
+                // Do nothing; it's OK for a task to be cancelled.
+                return (null as object).ToExecutionResult();
+            }
             catch (Exception e)
             {
                 Logger.LogWarning(e, $"Exception encountered when executing input: ${input}");

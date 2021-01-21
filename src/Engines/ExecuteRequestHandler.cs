@@ -240,6 +240,15 @@ namespace Microsoft.Jupyter.Core
                 var result = await ExecutionTaskForMessage(message, executionCount, onHandled);
                 return result;
             }
+            catch (TaskCanceledException tce)
+            {
+                this.logger?.LogDebug(tce, "Task cancelled.");
+                return new ExecutionResult
+                {
+                    Output = null,
+                    Status = ExecuteStatus.Abort
+                };
+            }
             catch (Exception e)
             {
                 this.logger?.LogError(e, "Unable to process ExecuteRequest");
