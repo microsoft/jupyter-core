@@ -1,6 +1,15 @@
 name: $(Build.Major).$(Build.Minor).$(BuildId)
 trigger:
 - master
+
+schedules:
+- cron: "0 9 * * Sat"
+  displayName: 'Build for Component Governance'
+  branches:
+    include:
+    - master
+  always: true
+
 resources:
   repositories:
   - repository: self
