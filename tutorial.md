@@ -1,6 +1,6 @@
 # Tutorial #
 
-In this tutorial, we'll walk through how the [**IEcho**](echo-kernel/) language kernel was created, as an example of how to make your own language kernels for Jupyter.
+In this tutorial, we'll walk through how the [**IEcho**](examples/echo-kernel/) language kernel was created, as an example of how to make your own language kernels for Jupyter.
 We'll use C# to write our kernel, but the same process can be used with your favorite .NET Core language (e.g.: F# or VB.NET).
 
 ## Prerequisites ##
