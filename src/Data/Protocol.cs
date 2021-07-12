@@ -88,6 +88,7 @@ namespace Microsoft.Jupyter.Core.Protocol
             {
                 ["kernel_info_request"] = data => new EmptyContent(),
                 ["execute_request"] = data => JsonConvert.DeserializeObject<ExecuteRequestContent>(data),
+                ["complete_request"] = data => JsonConvert.DeserializeObject<CompleteRequestContent>(data),
                 ["interrupt_request"] = data => new EmptyContent(),
                 ["shutdown_request"] = data => JsonConvert.DeserializeObject<ShutdownRequestContent>(data)
             }.ToImmutableDictionary();
@@ -158,6 +159,16 @@ namespace Microsoft.Jupyter.Core.Protocol
     }
 
     [JsonObject(MemberSerialization.OptIn)]
+    public class CompleteRequestContent : MessageContent
+    {
+        [JsonProperty("code")]
+        public string Code { get; set; }
+
+        [JsonProperty("cursor_pos")]
+        public int CursorPos { get; set; }
+    }
+
+    [JsonObject(MemberSerialization.OptIn)]
     public class ExecuteResultContent : MessageContent
     {
         [JsonProperty("execution_count")]
@@ -195,6 +206,25 @@ namespace Microsoft.Jupyter.Core.Protocol
 
         [JsonProperty("user_expressions")]
         public Dictionary<string, object> UserExpressions { get; set; }
+    }
+
+    [JsonObject(MemberSerialization.OptIn)]
+    public class CompleteReplyContent : MessageContent
+    {
+        [JsonProperty("status")]
+        public CompleteStatus CompleteStatus { get; set; }
+
+        [JsonProperty("matches")]
+        public List<string> Matches { get; set; } = new List<string>();
+
+        [JsonProperty("cursor_start")]
+        public int CursorStart { get; set; }
+
+        [JsonProperty("cursor_end")]
+        public int CursorEnd { get; set; }
+
+        [JsonProperty("metadata")]
+        public Dictionary<string, object> Metadata { get; set; } = new Dictionary<string, object>();
     }
 
     [JsonObject(MemberSerialization.OptIn)]

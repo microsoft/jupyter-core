@@ -46,10 +46,13 @@ namespace Microsoft.Jupyter.Core
         /// </example>
         public void RegisterHandler(string messageType, Func<Message, Task?> handler);
 
-        public void RegisterHandler<THandler>(IServiceProvider serviceProvider) =>
-            RegisterHandler(
-                (IShellHandler)ActivatorUtilities.CreateInstance(serviceProvider, typeof(THandler))
-            );
+        public THandler RegisterHandler<THandler>(IServiceProvider serviceProvider)
+        where THandler: IShellHandler
+        {
+            var handler = (THandler)ActivatorUtilities.CreateInstance(serviceProvider, typeof(THandler));
+            RegisterHandler(handler);
+            return handler;
+        }
 
         /// <summary>
         ///     Registers a handler that can be used to handle a

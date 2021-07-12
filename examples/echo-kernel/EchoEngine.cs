@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System;
@@ -24,6 +24,20 @@ namespace Microsoft.Jupyter.Core
 
         public override async Task<ExecutionResult> ExecuteMundane(string input, IChannel channel) =>
             (Program.ShoutOption.HasValue() ? input.ToUpper() : input).ToExecutionResult();
+
+        public override async Task<CompletionResult?> Complete(string code, int cursorPos)
+        {
+            Logger.LogInformation("Got completion request inside the echo kernel!");
+            return new CompletionResult
+            {
+                Matches = new string[]
+                {
+                    "foo",
+                    "bar"
+                }
+                .ToList()
+            };
+        }
 
         [MagicCommand(
             "%tick",

@@ -9,6 +9,7 @@ using Newtonsoft.Json;
 using System.Collections.Generic;
 using System.Security.Cryptography;
 using System;
+using Microsoft.Jupyter.Core.Protocol;
 
 namespace Microsoft.Jupyter.Core
 {
@@ -17,5 +18,22 @@ namespace Microsoft.Jupyter.Core
     /// </summary>
     public static partial class Extensions
     {
+        internal static void NotifyBusyStatus(this IShellServer shellServer, Message message, ExecutionState state)
+        {
+            // Begin by sending that we're busy.
+            shellServer.SendIoPubMessage(
+                new Message
+                {
+                    Header = new MessageHeader
+                    {
+                        MessageType = "status"
+                    },
+                    Content = new KernelStatusContent
+                    {
+                        ExecutionState = state
+                    }
+                }.AsReplyTo(message)
+            );
+        }
     }
 }
