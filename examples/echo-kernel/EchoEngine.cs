@@ -25,17 +25,23 @@ namespace Microsoft.Jupyter.Core
         public override async Task<ExecutionResult> ExecuteMundane(string input, IChannel channel) =>
             (Program.ShoutOption.HasValue() ? input.ToUpper() : input).ToExecutionResult();
 
-        public override async Task<CompletionResult?> Complete(string code, int cursorPos)
+        public override async Task<IEnumerable<BaseEngine.Completion>> CompleteMundane(string code, int cursorPos)
         {
             Logger.LogInformation("Got completion request inside the echo kernel!");
-            return new CompletionResult
+            return new List<BaseEngine.Completion>
             {
-                Matches = new string[]
+                new Completion
                 {
-                    "foo",
-                    "bar"
+                    CursorStart = cursorPos,
+                    CursorEnd = cursorPos,
+                    Text = "foo"
+                },
+                new Completion
+                {
+                    CursorStart = cursorPos,
+                    CursorEnd = cursorPos,
+                    Text = "bar"
                 }
-                .ToList()
             };
         }
 

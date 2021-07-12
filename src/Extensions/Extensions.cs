@@ -35,5 +35,33 @@ namespace Microsoft.Jupyter.Core
                 }.AsReplyTo(message)
             );
         }
+
+        internal static CompletionResult AsCompletionResult(this IEnumerable<BaseEngine.Completion> completions, string code, int cursorPos)
+        {
+            // Since Jupyter's messaging protocol assumes a single cursor start and end for all completions, we need
+            // to make a common cursor start from the minimum cursor start, and similarly for the cursor end.
+            var minCursor = cursorPos;
+            var maxCursor = cursorPos;
+            if (completions.Any())
+            {
+                minCursor = completions.Min(completion => completion.CursorStart);
+                maxCursor = completions.Max(completion => completion.CursorEnd);
+            }
+
+            return new CompletionResult
+            {
+                Status = CompleteStatus.Ok,
+                CursorStart = minCursor,
+                CursorEnd = maxCursor,
+                Matches = completions
+                    .Select(completion =>
+                    {
+                        var prefix = code.Substring(minCursor, completion.CursorStart - minCursor);
+                        var suffix = code.Substring(maxCursor, completion.CursorEnd - maxCursor);
+                        return prefix + completion.Text + suffix;
+                    })
+                    .ToList()
+            };
+        }
     }
 }

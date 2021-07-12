@@ -138,35 +138,47 @@ namespace Microsoft.Jupyter.Core
 
         }
 
+        private ISymbol SymbolForMethod(MagicCommandAttribute attr, MethodInfo method) =>
+            new MagicSymbol
+            {
+                Name = attr.Name,
+                Documentation = attr.Documentation,
+                Kind = SymbolKind.Magic,
+                Execute = (input, channel) =>
+                {
+                    try
+                    {
+                        return (Task<ExecutionResult>)(method.Invoke(engine, new object[] { input, channel }));
+                    } 
+                    catch (TargetInvocationException e)
+                    {
+                        throw e.InnerException;
+                    }
+                    catch (Exception)
+                    {
+                        throw new InvalidOperationException($"Invalid magic method for {attr.Name}. Expecting a public async method that takes a String and and IChannel as parameters.");
+                    }
+                }
+            };
+
         /// <inheritdoc />
         public ISymbol Resolve(string symbolName)
         {
             if (this.methods.ContainsKey(symbolName))
             {
                 (var attr, var method) = this.methods[symbolName];
-                return new MagicSymbol
-                {
-                    Name = attr.Name,
-                    Documentation = attr.Documentation,
-                    Kind = SymbolKind.Magic,
-                    Execute = (input, channel) =>
-                        {
-                            try
-                            {
-                                return (Task<ExecutionResult>)(method.Invoke(engine, new object[] { input, channel }));
-                            } 
-                            catch (TargetInvocationException e)
-                            {
-                                throw e.InnerException;
-                            }
-                            catch (Exception)
-                            {
-                                throw new InvalidOperationException($"Invalid magic method for {symbolName}. Expecting a public async method that takes a String and and IChannel as parameters.");
-                            }
-                        }
-                };
+                return SymbolForMethod(attr, method);
             }
             else return null;
+        }
+
+        /// <inheritdoc />
+        public IEnumerable<ISymbol> MaybeResolvePrefix(string symbolPrefix)
+        {
+            foreach (var (key, (attr, method)) in this.methods.Where(item => item.Value.Item1.Name.StartsWith(symbolPrefix)))
+            {
+                yield return SymbolForMethod(attr, method);
+            }
         }
     }
 }
