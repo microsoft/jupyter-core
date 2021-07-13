@@ -268,7 +268,7 @@ namespace Microsoft.Jupyter.Core.Protocol
         public string TargetName { get; set; }
 
         [JsonProperty("data", NullValueHandling = NullValueHandling.Ignore)]
-        public JToken RawData { get; set; } = JToken.FromObject(null);
+        public JToken RawData { get; set; } = null;
     }
 
     [JsonObject]
@@ -278,7 +278,7 @@ namespace Microsoft.Jupyter.Core.Protocol
         public string Id { get; set; }
 
         [JsonProperty("data")]
-        public JToken RawData { get; set; } = JToken.FromObject(null);
+        public JToken RawData { get; set; } = null;
     }
 
     [JsonObject(MemberSerialization.OptIn)]
@@ -288,7 +288,7 @@ namespace Microsoft.Jupyter.Core.Protocol
         public string Id { get; set; }
 
         [JsonProperty("data")]
-        public JToken RawData { get; set; } = JToken.FromObject(null);
+        public JToken RawData { get; set; } = null;
     }
 
 }

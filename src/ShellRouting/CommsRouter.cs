@@ -41,6 +41,7 @@ namespace Microsoft.Jupyter.Core
 
             internal CommSession(CommsRouter commsRouter, string id)
             {
+                this.IsValid = true;
                 this.commsRouter = commsRouter;
                 this.Id = id;
             }
@@ -258,7 +259,7 @@ namespace Microsoft.Jupyter.Core
 
         internal Task SendMessage(Message messsage)
         {
-            this.Server.SendShellMessage(messsage);
+            this.Server.SendIoPubMessage(messsage);
             return Task.CompletedTask;
         }
 
