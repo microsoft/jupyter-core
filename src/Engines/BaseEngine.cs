@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Text;
 using System.Linq;
 using System.Reflection;
 using Microsoft.Extensions.Logging;
@@ -103,6 +104,13 @@ namespace Microsoft.Jupyter.Core
             }
         }
 
+        public class Completion
+        {
+            public string Text { get; set; }
+            public int CursorStart { get; set; }
+            public int CursorEnd { get; set; }
+        }
+
         /// <summary>
         /// The list of arguments passed down to the <c>MundaneExecuted</c>, 
         /// <c>MagicExecuted</c> and <c>HelpExecuted</c> events.
@@ -112,11 +120,12 @@ namespace Microsoft.Jupyter.Core
             /// <summary>
             /// Default constructor, populates the corresponding event fields.
             /// </summary>
-            public ExecutedEventArgs(ISymbol symbol, ExecutionResult result, TimeSpan duration)
+            public ExecutedEventArgs(ISymbol symbol, ExecutionResult result, TimeSpan duration, int? executionCount = null)
             {
                 this.Symbol = symbol;
                 this.Result = result;
                 this.Duration = duration;
+                this.ExecutionCount = executionCount;
             }
 
             /// <summary>
@@ -134,6 +143,11 @@ namespace Microsoft.Jupyter.Core
             /// How long the execution took.
             /// </summary>
             public TimeSpan Duration { get; }
+
+            /// <summary>
+            /// Execution count when this event took place, if known.
+            /// </summary>
+            public int? ExecutionCount { get; }
         }
 
         protected List<string> History;
@@ -181,6 +195,16 @@ namespace Microsoft.Jupyter.Core
         private InputParser inputParser;
 
         private IServiceProvider serviceProvider;
+        private ExecuteRequestHandler executeRequestHandler = null;
+
+        public virtual ISymbolResolver? MagicResolver { get; protected set; } = null;
+
+        /// <summary>
+        ///      The number of cells that have been executed since the start of
+        ///      this engine. Used by clients to typeset cell numbers, e.g.:
+        ///      <c>In[12]:</c>.
+        /// </summary>
+        public int? ExecutionCount => executeRequestHandler.ExecutionCount;
 
         /// <summary>
         ///      Constructs an engine that communicates with a given server,
@@ -210,8 +234,8 @@ namespace Microsoft.Jupyter.Core
             this.inputParser = new InputParser(this);
 
             logger.LogDebug("Registering magic symbol resolution.");
-            var magicResolver = new MagicCommandResolver(this);
-            RegisterSymbolResolver(magicResolver);
+            this.MagicResolver = new MagicCommandResolver(this);
+            RegisterSymbolResolver(this.MagicResolver);
 
             RegisterDefaultEncoders();
         }
@@ -440,9 +464,10 @@ namespace Microsoft.Jupyter.Core
             {
                 shellServerSupportsInterrupt.InterruptRequest += OnInterruptRequest;
             }
-            
+
             Logger.LogDebug("Registering execution handler service.");
-            this.ShellRouter.RegisterHandler(new ExecuteRequestHandler(this, serviceProvider));
+            this.executeRequestHandler = this.ShellRouter.RegisterHandler<ExecuteRequestHandler>(serviceProvider);
+            this.ShellRouter.RegisterHandler<CompleteRequestHandler>(serviceProvider);
         }
 
         #endregion
@@ -545,6 +570,90 @@ namespace Microsoft.Jupyter.Core
             var commandType = this.inputParser.GetNextCommand(input, out symbol, out commandInput, out remainingInput);
             return commandType == InputParser.CommandType.Help || commandType == InputParser.CommandType.MagicHelp;
         }
+
+        #endregion
+
+        #region Completion
+
+        /// <summary>
+        ///     Entry point for getting code completion help while editing a
+        ///     Jupyter cell, omitting any potential completions for magic
+        ///     or help commands.
+        /// </summary>
+        /// <param name="code">The partial contents of the cell to be completed.</param>
+        /// <param name="cursorPos">
+        ///     The position of the cursor within the cell, as measured as the
+        ///     number of encoding-independent Unicode codepoints.
+        /// </param>
+        public virtual Task<IEnumerable<Completion>> CompleteMundane(string code, int cursorPos) =>
+            Task.FromResult<IEnumerable<Completion>>(new Completion[0]);
+
+        public virtual async Task<IEnumerable<Completion>> CompleteMagic(string code, int cursorPos)
+        {
+            // We start by finding what line the cursor is in, since both help
+            // and magic commands only make sense at the start of text lines.
+            //
+            // NB: This currently doesn't work correctly for code containing
+            //     characters in the astral plane, since Jupyter measures
+            //     cursor_pos in terms of the number of code points
+            //     and not in terms of the number of characters needed to represent
+            //     those code points in UTF-16. With .NET 5, we can rewrite
+            //     in terms of runes to solve this problem.
+            // TODO: Check if we need to split by \r\n as well.
+            var lines = code.Split("\n", StringSplitOptions.None);
+            var actualCursor = cursorPos;
+            string lineWithCursor = null;
+            foreach (var line in lines)
+            {
+                if (line.Length >= actualCursor)
+                {
+                    // We found the right line, so break.
+                    lineWithCursor = line;
+                    break;
+                }
+                actualCursor -= line.Length + 1; // The +1 is from \n.
+            }
+            if (lineWithCursor == null)
+            {
+                Logger.LogError("Cursor position {Pos} was outside of code snippet:\n{Code}", cursorPos, code);
+                Array.Empty<Completion>();
+            }
+
+            // If we're still here, then grab the part of the line that needs
+            // completed.
+            var partialInput = lineWithCursor.Substring(0, actualCursor);
+            // We only want to complete at the start of each line, so check
+            // if there's any whitespace in the partial input; if so, return.
+            if (partialInput.Contains(" "))
+            {
+                return Array.Empty<Completion>();
+            }
+
+            return MagicResolver
+                .MaybeResolvePrefix(partialInput)
+                .Select(symbol =>
+                    new Completion
+                    {
+                        CursorStart = cursorPos - partialInput.Length,
+                        CursorEnd = cursorPos,
+                        Text = symbol.Name
+                    }
+                );
+        }
+
+        /// <summary>
+        ///     Entry point for getting code completion help while editing a
+        ///     Jupyter cell.
+        /// </summary>
+        /// <param name="code">The partial contents of the cell to be completed.</param>
+        /// <param name="cursorPos">
+        ///     The position of the cursor within the cell, as measured as the
+        ///     number of encoding-independent Unicode codepoints.
+        /// </param>
+        public virtual async Task<CompletionResult?> Complete(string code, int cursorPos) =>
+            (await CompleteMagic(code, cursorPos))
+            .Concat(await CompleteMundane(code, cursorPos))
+            .AsCompletionResult(code, cursorPos);
 
         #endregion
 
@@ -731,7 +840,7 @@ namespace Microsoft.Jupyter.Core
             var result = await action(input, channel, cancellationToken);
             duration.Stop();
 
-            evt?.Invoke(this, new ExecutedEventArgs(null, result, duration.Elapsed));
+            evt?.Invoke(this, new ExecutedEventArgs(null, result, duration.Elapsed, this.ExecutionCount));
             return result;
         }
 
@@ -769,7 +878,7 @@ namespace Microsoft.Jupyter.Core
             var result = await action(input, symbol, channel, cancellationToken);
             duration.Stop();
 
-            evt?.Invoke(this, new ExecutedEventArgs(symbol, result, duration.Elapsed));
+            evt?.Invoke(this, new ExecutedEventArgs(symbol, result, duration.Elapsed, this.ExecutionCount));
             return result;
         }
         #endregion
