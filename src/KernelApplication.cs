@@ -194,6 +194,11 @@ namespace Microsoft.Jupyter.Core
                         "Specifies an extra argument to pass to Jupyter when installing this kernel.",
                         CommandOptionType.MultipleValue
                     );
+                    var nameOpt = cmd.Option<string>(
+                        "--name <NAME>",
+                        $"Specifies the name of the kernel to be installed; if not specified, defaults to {properties.KernelName}.",
+                        CommandOptionType.SingleOrNoValue
+                    );
                     cmd.OnExecute(() =>
                     {
                         var develop = developOpt.HasValue();
@@ -224,6 +229,10 @@ namespace Microsoft.Jupyter.Core
                             pathToTool:
                                 toolPathOpt.HasValue()
                                 ? toolPathOpt.ParsedValue
+                                : null,
+                            kernelName:
+                                nameOpt.HasValue()
+                                ? nameOpt.ParsedValue
                                 : null
                         ));
                     });
@@ -364,6 +373,11 @@ namespace Microsoft.Jupyter.Core
         ///     Specifies additional parameters that should be included to
         ///     the command that starts the kernel.
         /// </param>
+        /// <param name="kernelName">
+        ///     If not <c>null</c>, specifies the name of the kernel to be
+        ///     passed to <c>jupyter kernelspec</c> as <c>--name</c>.
+        ///     If <c>null</c>, the name defaults to <see cref="KernelProperties.KernelName"/>.
+        /// </param>
         /// <remarks>
         ///      This method dynamically generates a new <c>kernelspec.json</c>
         ///      file representing the kernel properties provided when the
@@ -375,7 +389,8 @@ namespace Microsoft.Jupyter.Core
                                      string? prefix = null, IEnumerable<string>? extraInstallArgs = null,
                                      IDictionary<string, Func<Stream>>? additionalFiles = null,
                                      IEnumerable<string>? additionalKernelArguments = null,
-                                     string? pathToTool = null)
+                                     string? pathToTool = null,
+                                     string? kernelName = null)
         {
             var kernelSpecDir = "";
             KernelSpec kernelSpec;
@@ -481,7 +496,7 @@ namespace Microsoft.Jupyter.Core
                 process = Process.Start(new ProcessStartInfo
                 {
                     FileName = "jupyter",
-                    Arguments = $"kernelspec install \"{kernelSpecDir}\" --name=\"{properties.KernelName}\" {String.Join(" ", extraArgs)}"
+                    Arguments = $"kernelspec install \"{kernelSpecDir}\" --name=\"{kernelName ?? properties.KernelName}\" {String.Join(" ", extraArgs)}"
                 });
             }
             catch (Win32Exception ex)
