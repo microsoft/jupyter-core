@@ -37,12 +37,15 @@ namespace Microsoft.Jupyter.Core
         /// </summary>
         public int ExecutionCount { get; protected set; } = 0;
 
-        public ExecuteRequestHandler(BaseEngine engine, IServiceProvider serviceProvider)
+        public ExecuteRequestHandler(IExecutionEngine engine, IShellServer shellServer, ILogger<ExecuteRequestHandler> logger)
         {
-            if (serviceProvider == null) { throw new ArgumentNullException(nameof(serviceProvider)); }
-            this.engine = engine;
-            this.shellServer = serviceProvider.GetService<IShellServer>();
-            this.logger = serviceProvider.GetService<ILogger<ExecuteRequestHandler>>();
+            if (engine is BaseEngine baseEngine)
+            {
+                this.engine = baseEngine;
+            }
+            else throw new Exception("The ExecuteRequestHandler requires that the IExecutionEngine service inherits from BaseEngine.");
+            this.shellServer = shellServer;
+            this.logger = logger;
         }
 
         public override string MessageType => "execute_request";
@@ -191,24 +194,6 @@ namespace Microsoft.Jupyter.Core
             );
         }
 
-        private void NotifyBusyStatus(Message message, ExecutionState state)
-        {
-            // Begin by sending that we're busy.
-            this.shellServer.SendIoPubMessage(
-                new Message
-                {
-                    Header = new MessageHeader
-                    {
-                        MessageType = "status"
-                    },
-                    Content = new KernelStatusContent
-                    {
-                        ExecutionState = state
-                    }
-                }.AsReplyTo(message)
-            );
-        }
-
         private int IncrementExecutionCount()
         {
             lock (this)
@@ -231,9 +216,9 @@ namespace Microsoft.Jupyter.Core
                 await SendAbortMessage(message);
                 return ExecutionResult.Aborted;
             }
-            
+
             var executionCount = IncrementExecutionCount();
-            NotifyBusyStatus(message, ExecutionState.Busy);
+            shellServer.NotifyBusyStatus(message, ExecutionState.Busy);
 
             try
             {
@@ -260,7 +245,7 @@ namespace Microsoft.Jupyter.Core
             }
             finally
             {
-                NotifyBusyStatus(message, ExecutionState.Idle);
+                shellServer.NotifyBusyStatus(message, ExecutionState.Idle);
             }
         }
 

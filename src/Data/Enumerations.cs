@@ -29,6 +29,16 @@ namespace Microsoft.Jupyter.Core
     }
 
     [JsonConverter(typeof(StringEnumConverter))]
+    public enum CompleteStatus
+    {
+        [EnumMember(Value="ok")]
+        Ok,
+
+        [EnumMember(Value="error")]
+        Error
+    }
+
+    [JsonConverter(typeof(StringEnumConverter))]
     public enum ExecutionState
     {
         [EnumMember(Value="busy")]

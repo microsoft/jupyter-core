@@ -115,6 +115,17 @@ namespace Microsoft.Jupyter.Core
         ///      successfully resolved.
         /// </returns>
         ISymbol? Resolve(string symbolName);
+
+        /// <summary>
+        ///     Resolves a global symbol into possible matches, given a prefix.
+        /// </summary>
+        /// <returns>
+        ///      An enumeration of resolved symbols matching the given prefix,
+        ///      if any, or an empty enumeration if this resolver does not
+        ///      support prefix matching.
+        /// </returns>
+        IEnumerable<ISymbol> MaybeResolvePrefix(string symbolPrefix) =>
+            Array.Empty<ISymbol>();
     }
 
 }
