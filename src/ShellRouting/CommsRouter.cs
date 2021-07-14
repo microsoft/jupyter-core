@@ -117,10 +117,10 @@ namespace Microsoft.Jupyter.Core
 
         private class CommSessionOpen : ICommSessionOpen
         {
-            public event Action<ICommSession>? On = null;
+            public event Func<ICommSession, JToken, Task>? On = null;
 
-            internal void Handle(ICommSession session) =>
-                On?.Invoke(session);
+            internal async Task Handle(ICommSession session, JToken data) =>
+                await (On?.Invoke(session, data) ?? Task.CompletedTask);
         }
 
         #endregion
@@ -155,7 +155,7 @@ namespace Microsoft.Jupyter.Core
                     {
                         var session = new CommSession(this, openContent.Id);
                         openSessions.Add(session.Id, session);
-                        handler.Handle(session);
+                        await handler.Handle(session, openContent.RawData);
                     }
                     else
                     {

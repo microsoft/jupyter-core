@@ -6,6 +6,7 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.Jupyter.Core.Protocol;
+using Newtonsoft.Json.Linq;
 
 namespace Microsoft.Jupyter.Core
 {
@@ -55,7 +56,7 @@ namespace Microsoft.Jupyter.Core
 
     public interface ICommSessionOpen
     {
-        event Action<ICommSession>? On;
+        event Func<ICommSession, JToken, Task>? On;
     }
 
     public interface ICommsRouter
