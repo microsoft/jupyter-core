@@ -37,6 +37,7 @@ namespace Microsoft.Jupyter.Core
                 converted = null;
                 return false;
             }
+        }
 
         internal static void NotifyBusyStatus(this IShellServer shellServer, Message message, ExecutionState state)
         {
