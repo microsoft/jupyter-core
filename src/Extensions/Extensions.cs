@@ -9,6 +9,7 @@ using Newtonsoft.Json;
 using System.Collections.Generic;
 using System.Security.Cryptography;
 using System;
+using Newtonsoft.Json.Linq;
 using Microsoft.Jupyter.Core.Protocol;
 
 namespace Microsoft.Jupyter.Core
@@ -18,6 +19,26 @@ namespace Microsoft.Jupyter.Core
     /// </summary>
     public static partial class Extensions
     {
+        /// <summary>
+        ///      Given some raw data, attempts to decode it into an object of
+        ///      a given type, returning <c>false</c> if the deserialization
+        ///      fails.
+        /// </summary>
+        public static bool TryAs<T>(this JToken rawData, out T converted)
+        where T: class
+        {
+            try
+            {
+                converted = rawData.ToObject<T>();
+                return true;
+            }
+            catch
+            {
+                converted = null;
+                return false;
+            }
+        }
+
         internal static void NotifyBusyStatus(this IShellServer shellServer, Message message, ExecutionState state)
         {
             // Begin by sending that we're busy.

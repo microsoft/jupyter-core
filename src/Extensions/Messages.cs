@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Security.Cryptography;
 using System;
 using Microsoft.Jupyter.Core.Protocol;
+using Newtonsoft.Json.Linq;
 
 namespace Microsoft.Jupyter.Core
 {
@@ -84,7 +85,7 @@ namespace Microsoft.Jupyter.Core
                 data =>
                     new UnknownContent
                     {
-                        Data = JsonConvert.DeserializeObject<Dictionary<string, object>>(data)
+                        RawData = JToken.Parse(data)
                     }
             )(frames[idxDelimiter + 5]);
 

@@ -3,6 +3,7 @@
 
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -66,15 +67,21 @@ namespace Microsoft.Jupyter.Core.Protocol
         // FIXME: make not just an object.
         public MessageContent Content { get; set; }
 
+        public Message WithSessionFrom(Message parent)
+        {
+            var reply = this.MemberwiseClone() as Message;
+            reply.ZmqIdentities = parent.ZmqIdentities;
+            reply.Header.Session = parent.Header.Session;
+            return reply;
+        }
+
         public Message AsReplyTo(Message parent)
         {
             // No parent, just return
             if (parent == null) return this;
 
-            var reply = this.MemberwiseClone() as Message;
-            reply.ZmqIdentities = parent.ZmqIdentities;
+            var reply = this.WithSessionFrom(parent);
             reply.ParentHeader = parent.Header;
-            reply.Header.Session = parent.Header.Session;
             return reply;
         }
 
@@ -90,7 +97,10 @@ namespace Microsoft.Jupyter.Core.Protocol
                 ["execute_request"] = data => JsonConvert.DeserializeObject<ExecuteRequestContent>(data),
                 ["complete_request"] = data => JsonConvert.DeserializeObject<CompleteRequestContent>(data),
                 ["interrupt_request"] = data => new EmptyContent(),
-                ["shutdown_request"] = data => JsonConvert.DeserializeObject<ShutdownRequestContent>(data)
+                ["shutdown_request"] = data => JsonConvert.DeserializeObject<ShutdownRequestContent>(data),
+                ["comm_open"] = data => JsonConvert.DeserializeObject<CommOpenContent>(data),
+                ["comm_msg"] = data => JsonConvert.DeserializeObject<CommMessageContent>(data),
+                ["comm_close"] = data => JsonConvert.DeserializeObject<CommCloseContent>(data)
             }.ToImmutableDictionary();
     }
 
@@ -102,7 +112,20 @@ namespace Microsoft.Jupyter.Core.Protocol
     [JsonObject(MemberSerialization.OptIn)]
     public class UnknownContent : MessageContent
     {
-        public Dictionary<string, object> Data { get; set; }
+        public Dictionary<string, object> Data
+        {
+            get
+            {
+                return RawData.ToObject<Dictionary<string, object>>();
+            }
+
+            set
+            {
+                RawData = JToken.FromObject(value);
+            }
+        }
+
+        public JToken RawData { get; set; }
     }
 
     [JsonObject(MemberSerialization.OptIn)]
@@ -263,6 +286,39 @@ namespace Microsoft.Jupyter.Core.Protocol
 
         [JsonProperty("transient", NullValueHandling=NullValueHandling.Ignore)]
         public TransientDisplayData Transient { get; set; } = null;
+    }
+
+    [JsonObject(MemberSerialization.OptIn)]
+    public class CommOpenContent : MessageContent
+    {
+        [JsonProperty("comm_id")]
+        public string Id { get; set; }
+
+        [JsonProperty("target_name")]
+        public string TargetName { get; set; }
+
+        [JsonProperty("data", NullValueHandling = NullValueHandling.Ignore)]
+        public JToken RawData { get; set; } = null;
+    }
+
+    [JsonObject]
+    public class CommMessageContent : MessageContent
+    {
+        [JsonProperty("comm_id")]
+        public string Id { get; set; }
+
+        [JsonProperty("data")]
+        public JToken RawData { get; set; } = null;
+    }
+
+    [JsonObject(MemberSerialization.OptIn)]
+    public class CommCloseContent : MessageContent
+    {
+        [JsonProperty("comm_id")]
+        public string Id { get; set; }
+
+        [JsonProperty("data")]
+        public JToken RawData { get; set; } = null;
     }
 
 }
