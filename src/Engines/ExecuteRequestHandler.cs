@@ -27,6 +27,7 @@ namespace Microsoft.Jupyter.Core
 
         private Task<bool>? previousTask = null;
         private ILogger<ExecuteRequestHandler>? logger = null;
+        private ICommsRouter router;
 
         protected override ILogger? Logger => logger;
 
@@ -37,7 +38,7 @@ namespace Microsoft.Jupyter.Core
         /// </summary>
         public int ExecutionCount { get; protected set; } = 0;
 
-        public ExecuteRequestHandler(IExecutionEngine engine, IShellServer shellServer, ILogger<ExecuteRequestHandler> logger)
+        public ExecuteRequestHandler(IExecutionEngine engine, IShellServer shellServer, ICommsRouter router, ILogger<ExecuteRequestHandler> logger)
         {
             if (engine is BaseEngine baseEngine)
             {
@@ -46,6 +47,7 @@ namespace Microsoft.Jupyter.Core
             else throw new Exception("The ExecuteRequestHandler requires that the IExecutionEngine service inherits from BaseEngine.");
             this.shellServer = shellServer;
             this.logger = logger;
+            this.router = router;
         }
 
         public override string MessageType => "execute_request";
@@ -91,7 +93,7 @@ namespace Microsoft.Jupyter.Core
                 {
                     engineResponse = await engine.Execute(
                         code,
-                        new BaseEngine.ExecutionChannel(engine, message),
+                        new BaseEngine.ExecutionChannel(engine, message, router),
                         cancellationTokenSource.Token
                     );
                 }

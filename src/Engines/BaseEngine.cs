@@ -1,5 +1,7 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
+
+#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -50,11 +52,16 @@ namespace Microsoft.Jupyter.Core
         {
             private readonly Message parent;
             private readonly BaseEngine engine;
-            public ExecutionChannel(BaseEngine engine, Message parent)
+            private readonly ICommsRouter router;
+            public ExecutionChannel(BaseEngine engine, Message parent, ICommsRouter router)
             {
                 this.parent = parent;
                 this.engine = engine;
+                this.router = router;
             }
+
+            /// <inherit-doc />
+            public ICommsRouter? CommsRouter => router;
 
             public void Display(object displayable)
             {
@@ -106,7 +113,7 @@ namespace Microsoft.Jupyter.Core
 
         public class Completion
         {
-            public string Text { get; set; }
+            public string? Text { get; set; }
             public int CursorStart { get; set; }
             public int CursorEnd { get; set; }
         }
@@ -120,7 +127,7 @@ namespace Microsoft.Jupyter.Core
             /// <summary>
             /// Default constructor, populates the corresponding event fields.
             /// </summary>
-            public ExecutedEventArgs(ISymbol symbol, ExecutionResult result, TimeSpan duration, int? executionCount = null)
+            public ExecutedEventArgs(ISymbol? symbol, ExecutionResult result, TimeSpan duration, int? executionCount = null)
             {
                 this.Symbol = symbol;
                 this.Result = result;
@@ -132,7 +139,7 @@ namespace Microsoft.Jupyter.Core
             /// The symbol, for example the Magic symbol, that was executed.
             /// For the <c>MundaneExecuted</c> this is null.
             /// </summary>
-            public ISymbol Symbol { get; }
+            public ISymbol? Symbol { get; }
 
             /// <summary>
             /// The actual result from the execution.
@@ -157,19 +164,19 @@ namespace Microsoft.Jupyter.Core
         /// <summary>
         /// This event is triggered when a non-magic cell is executed.
         /// </summary>
-        public event EventHandler<ExecutedEventArgs> MundaneExecuted;
+        public event EventHandler<ExecutedEventArgs>? MundaneExecuted;
 
         /// <summary>
         /// This event is triggered when a magic command is executed. Magic commands are typically
         /// identified by symbol    s that is pre-fixed with '%' (like <c>%history</c>).
         /// </summary>
-        public event EventHandler<ExecutedEventArgs> MagicExecuted;
+        public event EventHandler<ExecutedEventArgs>? MagicExecuted;
 
         /// <summary>
         /// This event is triggered when a the help command is executed. Help commands are typically
         /// identified when a symbols starts or finishes with '?' (like <c>history?</c>).
         /// </summary>
-        public event EventHandler<ExecutedEventArgs> HelpExecuted;
+        public event EventHandler<ExecutedEventArgs>? HelpExecuted;
 
         /// <summary>
         ///     The shell server used to communicate with the clients over the
@@ -195,7 +202,7 @@ namespace Microsoft.Jupyter.Core
         private InputParser inputParser;
 
         private IServiceProvider serviceProvider;
-        private ExecuteRequestHandler executeRequestHandler = null;
+        private ExecuteRequestHandler? executeRequestHandler = null;
 
         public virtual ISymbolResolver? MagicResolver { get; protected set; } = null;
 
@@ -204,7 +211,7 @@ namespace Microsoft.Jupyter.Core
         ///      this engine. Used by clients to typeset cell numbers, e.g.:
         ///      <c>In[12]:</c>.
         /// </summary>
-        public int? ExecutionCount => executeRequestHandler.ExecutionCount;
+        public int? ExecutionCount => executeRequestHandler?.ExecutionCount;
 
         /// <summary>
         ///      Constructs an engine that communicates with a given server,
@@ -265,7 +272,7 @@ namespace Microsoft.Jupyter.Core
         ///     The most recently added symbol resolvers are used first, falling
         ///     back through to the oldest resolver until a resolution is found.
         /// </remarks>
-        public ISymbol Resolve(string symbolName)
+        public ISymbol? Resolve(string symbolName)
         {
             if (symbolName == null) { throw new ArgumentNullException(nameof(symbolName)); }
             foreach (var resolver in resolvers.EnumerateInReverse())
@@ -329,7 +336,7 @@ namespace Microsoft.Jupyter.Core
         ///      Additional JSON converters to be used when serializing results
         ///      into JSON.
         /// </param>
-        public void RegisterJsonEncoder(string mimeType, params JsonConverter[] converters) =>
+        public void RegisterJsonEncoder(string? mimeType, params JsonConverter[] converters) =>
             RegisterDisplayEncoder(new JsonResultEncoder(this.Logger, converters, mimeType));
 
         /// <summary>
@@ -458,6 +465,7 @@ namespace Microsoft.Jupyter.Core
         /// </summary>
         public virtual Task Initialized => Task.CompletedTask;
 
+        /// <inheritdoc />
         public virtual void Start()
         {
             if (this.ShellServer is IShellServerSupportsInterrupt shellServerSupportsInterrupt)
@@ -533,7 +541,7 @@ namespace Microsoft.Jupyter.Core
         ///      </code>
         ///      and the function will return <c>true</c>.
         /// </example>
-        public virtual bool IsMagic(string input, out ISymbol symbol, out string commandInput, out string remainingInput)
+        public virtual bool IsMagic(string input, out ISymbol? symbol, out string commandInput, out string remainingInput)
         {
             var commandType = this.inputParser.GetNextCommand(input, out symbol, out commandInput, out remainingInput);
             return commandType == InputParser.CommandType.Magic || commandType == InputParser.CommandType.MagicHelp;
@@ -565,7 +573,7 @@ namespace Microsoft.Jupyter.Core
         ///      </code>
         ///      and the function will return <c>true</c>.
         /// </example>
-        public virtual bool IsHelp(string input, out ISymbol symbol, out string commandInput, out string remainingInput)
+        public virtual bool IsHelp(string input, out ISymbol? symbol, out string commandInput, out string remainingInput)
         {
             var commandType = this.inputParser.GetNextCommand(input, out symbol, out commandInput, out remainingInput);
             return commandType == InputParser.CommandType.Help || commandType == InputParser.CommandType.MagicHelp;
@@ -590,6 +598,12 @@ namespace Microsoft.Jupyter.Core
 
         public virtual async Task<IEnumerable<Completion>> CompleteMagic(string code, int cursorPos)
         {
+            if (MagicResolver == null)
+            {
+                Logger.LogDebug("Cannot provide completions, as magic resolver was null.");
+                return Array.Empty<Completion>();
+            }
+
             // We start by finding what line the cursor is in, since both help
             // and magic commands only make sense at the start of text lines.
             //
@@ -602,7 +616,7 @@ namespace Microsoft.Jupyter.Core
             // TODO: Check if we need to split by \r\n as well.
             var lines = code.Split("\n", StringSplitOptions.None);
             var actualCursor = cursorPos;
-            string lineWithCursor = null;
+            string? lineWithCursor = null;
             foreach (var line in lines)
             {
                 if (line.Length >= actualCursor)
@@ -616,7 +630,7 @@ namespace Microsoft.Jupyter.Core
             if (lineWithCursor == null)
             {
                 Logger.LogError("Cursor position {Pos} was outside of code snippet:\n{Code}", cursorPos, code);
-                Array.Empty<Completion>();
+                return Array.Empty<Completion>();
             }
 
             // If we're still here, then grab the part of the line that needs
@@ -695,7 +709,7 @@ namespace Microsoft.Jupyter.Core
                 while (result.Status == ExecuteStatus.Ok && !string.IsNullOrEmpty(currentInput))
                 {
                     // We first check to see if the first token is a help or magic command for this kernel.
-                    var commandType = this.inputParser.GetNextCommand(currentInput, out ISymbol symbol, out string commandInput, out string remainingInput);
+                    var commandType = this.inputParser.GetNextCommand(currentInput, out ISymbol? symbol, out string commandInput, out string remainingInput);
                     if (commandType == InputParser.CommandType.MagicHelp || commandType == InputParser.CommandType.Help)
                     {
                         result = await ExecuteAndNotify(commandInput, symbol, channel, cancellationToken, ExecuteHelp, HelpExecuted);
@@ -729,10 +743,10 @@ namespace Microsoft.Jupyter.Core
             }
         }
 
-        public virtual async Task<ExecutionResult> ExecuteHelp(string input, ISymbol symbol, IChannel channel)
+        public virtual async Task<ExecutionResult> ExecuteHelp(string input, ISymbol? symbol, IChannel channel)
             => await ExecuteHelp(input, symbol, channel, CancellationToken.None);
 
-        public virtual async Task<ExecutionResult> ExecuteHelp(string input, ISymbol symbol, IChannel channel, CancellationToken cancellationToken)
+        public virtual async Task<ExecutionResult> ExecuteHelp(string input, ISymbol? symbol, IChannel channel, CancellationToken cancellationToken)
         {
             if (symbol == null)
             {
@@ -745,10 +759,10 @@ namespace Microsoft.Jupyter.Core
             }
         }
 
-        public virtual async Task<ExecutionResult> ExecuteMagic(string input, ISymbol symbol, IChannel channel)
+        public virtual async Task<ExecutionResult> ExecuteMagic(string input, ISymbol? symbol, IChannel channel)
             => await ExecuteMagic(input, symbol, channel, CancellationToken.None);
 
-        public virtual async Task<ExecutionResult> ExecuteMagic(string input, ISymbol symbol, IChannel channel, CancellationToken cancellationToken)
+        public virtual async Task<ExecutionResult> ExecuteMagic(string input, ISymbol? symbol, IChannel channel, CancellationToken cancellationToken)
         {
             // We should never be called with an ISymbol that isn't a MagicSymbol,
             // since this method should only be called by using magicResolver.
@@ -867,10 +881,10 @@ namespace Microsoft.Jupyter.Core
         /// </summary>
         public async Task<ExecutionResult> ExecuteAndNotify(
             string input,
-            ISymbol symbol,
+            ISymbol? symbol,
             IChannel channel,
             CancellationToken cancellationToken,
-            Func<string, ISymbol, IChannel, CancellationToken, Task<ExecutionResult>> action,
+            Func<string, ISymbol?, IChannel, CancellationToken, Task<ExecutionResult>> action,
             EventHandler<ExecutedEventArgs> evt
         )
         {

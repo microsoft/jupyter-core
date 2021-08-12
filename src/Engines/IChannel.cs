@@ -1,5 +1,7 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
+
+#nullable enable
 
 using System;
 using Microsoft.Jupyter.Core.Protocol;
@@ -84,5 +86,16 @@ namespace Microsoft.Jupyter.Core
         /// </summary>
         /// <param name="message">The message to send. Cannot be null.</param>
         void SendIoPubMessage(Message message) => throw new NotImplementedException();
+
+        /// <summary>
+        ///     Gets the comms router associated with this channel, if any,
+        ///     or <c>null</c> if no comms router is available.
+        /// </summary>
+        /// <remarks>
+        ///     Engines should ensure that this value is not <c>null</c>. In
+        ///     a future version, this property will no longer be nullable.
+        /// </remarks>
+        public ICommsRouter? CommsRouter => null;
+
     }
 }

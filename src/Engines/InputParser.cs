@@ -26,7 +26,7 @@ namespace Microsoft.Jupyter.Core
             this.Resolver = resolver;
         }
 
-        public CommandType GetNextCommand(string input, out ISymbol? symbol, out string? commandInput, out string? remainingInput)
+        public CommandType GetNextCommand(string input, out ISymbol? symbol, out string commandInput, out string remainingInput)
         {
             if (input == null) { throw new ArgumentNullException("input"); }
 
@@ -34,7 +34,7 @@ namespace Microsoft.Jupyter.Core
             commandInput = input;
             remainingInput = string.Empty;
 
-            var inputLines = input?.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None).ToList();
+            var inputLines = input.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None).ToList();
             if (inputLines == null || inputLines.Count == 0)
             {
                 return CommandType.Mundane;
@@ -51,12 +51,12 @@ namespace Microsoft.Jupyter.Core
 
             // Look through the remaining lines until we find one that
             // starts with a magic symbol.
-            commandInput = null;
+            string? _commandInput = null;
             for (int lineIndex = firstLineIndex + 1; lineIndex < inputLines.Count; lineIndex++)
             {
                 if (StartsWithMagic(inputLines[lineIndex], out _, out _))
                 {
-                    commandInput = string.Join(Environment.NewLine, inputLines.SkipLast(inputLines.Count - lineIndex));
+                    _commandInput = string.Join(Environment.NewLine, inputLines.SkipLast(inputLines.Count - lineIndex));
                     remainingInput = string.Join(Environment.NewLine, inputLines.Skip(lineIndex));
                     break;
                 }
@@ -64,11 +64,8 @@ namespace Microsoft.Jupyter.Core
 
             // If we didn't find another magic symbol, use the full input
             // as the command input.
-            if (commandInput == null)
-            {
-                commandInput = input;
-            }
-            
+            commandInput = _commandInput ?? input;
+
             return isHelp ? CommandType.MagicHelp : CommandType.Magic;
         }
 
