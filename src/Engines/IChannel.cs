@@ -96,6 +96,5 @@ namespace Microsoft.Jupyter.Core
         ///     a future version, this property will no longer be nullable.
         /// </remarks>
         public ICommsRouter? CommsRouter => null;
-
     }
 }
