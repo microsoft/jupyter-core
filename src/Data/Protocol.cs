@@ -62,7 +62,7 @@ namespace Microsoft.Jupyter.Core.Protocol
         public MessageHeader ParentHeader { get; set; }
 
         // FIXME: make not just an object.
-        public object Metadata { get; set; }
+        public object Metadata { get; set; } = new Dictionary<string, object>();
 
         // FIXME: make not just an object.
         public MessageContent Content { get; set; }
