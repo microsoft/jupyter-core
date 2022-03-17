@@ -118,7 +118,9 @@ namespace Microsoft.Jupyter.Core
                 {
                     message.Header,
                     message.ParentHeader,
-                    message.Metadata,
+                    // Make sure that metadata is never null when going out
+                    // over the wire.
+                    message.Metadata ?? new Dictionary<string, object>(),
                     message.Content
                 }
                 .Select(frame => JsonConvert.SerializeObject(frame))
