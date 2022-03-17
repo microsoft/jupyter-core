@@ -9,12 +9,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Microsoft.Jupyter.Core
 {
-    internal class MundaneSymbol : ISymbol
-    {
-        public string Name { get; set; }
-        
-        public SymbolKind Kind { get; set; }
-    }
+    internal record MundaneSymbol(string Name, SymbolKind Kind) : ISymbol;
 
     internal class MockSymbolResolver : ISymbolResolver
     {
@@ -32,13 +27,8 @@ namespace Microsoft.Jupyter.Core
                 } as ISymbol
             : 
             this.otherSymbols.Contains(symbolName)
-            ? new MundaneSymbol
-                {
-                    Name = symbolName,
-                    Kind = SymbolKind.Callable
-                } as ISymbol
-            :
-            null;
+            ? new MundaneSymbol(symbolName, SymbolKind.Callable) as ISymbol
+            : null;
     }
 
     [TestClass]
