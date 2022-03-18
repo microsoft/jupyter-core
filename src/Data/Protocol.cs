@@ -87,6 +87,11 @@ namespace Microsoft.Jupyter.Core.Protocol
 
     }
 
+    public interface IHasStatus<TStatus>
+    {
+        public TStatus Status { get; set; }
+    }
+
     [JsonObject(MemberSerialization.OptIn)]
     public class MessageContent
     {
@@ -129,8 +134,11 @@ namespace Microsoft.Jupyter.Core.Protocol
     }
 
     [JsonObject(MemberSerialization.OptIn)]
-    public class KernelInfoReplyContent : MessageContent
+    public class KernelInfoReplyContent : MessageContent, IHasStatus<ExecuteStatus>
     {
+        [JsonProperty("status")]
+        public ExecuteStatus Status { get; set; } = ExecuteStatus.Ok;
+
         [JsonProperty("protocol_version")]
         public string ProtocolVersion { get => "5.2.0"; }
 
@@ -215,10 +223,25 @@ namespace Microsoft.Jupyter.Core.Protocol
     }
 
     [JsonObject(MemberSerialization.OptIn)]
-    public class ExecuteReplyContent : MessageContent
+    public class ExecuteReplyContent : MessageContent, IHasStatus<ExecuteStatus>
     {
         [JsonProperty("status")]
-        public ExecuteStatus ExecuteStatus { get; set; }
+        public ExecuteStatus Status { get; set; }
+
+        // For backwards compatability, also define ExecuteStatus as forwarding
+        // to status.
+        [Obsolete("Please use Status.")]
+        public ExecuteStatus ExecuteStatus
+        {
+            get
+            {
+                return Status;
+            }
+            set
+            {
+                Status = value;
+            }
+        }
 
         [JsonProperty("execution_count")]
         public int? ExecutionCount { get; set; }
@@ -232,10 +255,26 @@ namespace Microsoft.Jupyter.Core.Protocol
     }
 
     [JsonObject(MemberSerialization.OptIn)]
-    public class CompleteReplyContent : MessageContent
+    public class CompleteReplyContent : MessageContent, IHasStatus<CompleteStatus>
     {
         [JsonProperty("status")]
-        public CompleteStatus CompleteStatus { get; set; }
+        public CompleteStatus Status { get; set; }
+
+
+        // For backwards compatability, also define ExecuteStatus as forwarding
+        // to status.
+        [Obsolete("Please use Status.")]
+        public CompleteStatus CompleteStatus
+        {
+            get
+            {
+                return Status;
+            }
+            set
+            {
+                Status = value;
+            }
+        }
 
         [JsonProperty("matches")]
         public List<string> Matches { get; set; } = new List<string>();
