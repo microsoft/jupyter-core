@@ -7,7 +7,7 @@ steps:
   displayName: 'Create conda environment for hosting Jupyter kernels'
   inputs:
     environmentName: core_tests
-    packageSpecs: python=3.6 notebook jupyter_client pytest nose pip>=18.1
+    packageSpecs: python=3.7 notebook jupyter_client pytest nose pip>=18.1
 
 - script: |
      echo $PATH
