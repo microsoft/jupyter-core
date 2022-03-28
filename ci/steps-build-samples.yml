@@ -3,10 +3,10 @@
 ##
 
 steps:
-- script: |
+- pwsh: |
     echo $CONDA
     echo $_CONDA_EXE
-    conda create --yes --quiet --name core_tests
+    $(CONDA)/scripts/conda.exe create --yes --quiet --name core_tests
   displayName: Create Anaconda environment
 
 - script: |
