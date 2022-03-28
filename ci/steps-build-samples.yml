@@ -11,7 +11,7 @@ steps:
   displayName: Create Anaconda environment
 
 - script: |
-    $(CONDA)/scripts/conda.exe install --yes --quiet --name core_tests python=3.7 notebook jupyter_client pytest nose pip>=18.1
+    $(CONDA)/scripts/conda.exe install --yes --quiet --name core_tests python=3.8 notebook jupyter_client pytest nose pip>=18.1
   displayName: Install Anaconda packages
 
 ##
