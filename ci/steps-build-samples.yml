@@ -13,22 +13,13 @@ steps:
     $(CONDA)/scripts/conda.exe install --yes --quiet --name core_tests python=3.7 notebook jupyter_client pytest nose pip>=18.1
   displayName: Install Anaconda packages
 
-- pwsh: |
-    (& "C:\Miniconda\scripts\conda.exe" "shell.powershell" "hook") | Out-String | Invoke-Expression
-    conda activate conda_env
-    conda info
-    pwsh ./pack-conda.ps1
-  displayName: "Packing IQ# packages"
-  workingDirectory: '$(System.DefaultWorkingDirectory)/build'
-  condition: eq(variables.OperatingSystem, 'windows')
-
 - script: |
      echo $PATH
      which python
   condition: in(variables['Agent.OS'], 'Linux', 'Darwin')
   displayName: 'Check Python path (Linux and macOS).'
 
-- script: |
+- pwsh: |
     (& "C:\Miniconda\scripts\conda.exe" "shell.powershell" "hook") | Out-String | Invoke-Expression
     conda activate core_tests
     conda info
