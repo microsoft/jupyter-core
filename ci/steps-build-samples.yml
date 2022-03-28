@@ -4,8 +4,6 @@
 
 steps:
 - pwsh: |
-    echo $CONDA
-    echo $_CONDA_EXE
     $(CONDA)/scripts/conda.exe create --yes --quiet --name core_tests
   displayName: Create Anaconda environment
 
@@ -28,7 +26,7 @@ steps:
 
 # The version of pyzmq on Anaconda does not seem to work in Windows agents
 # as of November 2018: https://github.com/zeromq/pyzmq/issues/852
-- script: |
+- pwsh: |
     (& "C:\Miniconda\scripts\conda.exe" "shell.powershell" "hook") | Out-String | Invoke-Expression
     conda activate core_tests
     pip uninstall -y pyzmq
@@ -36,21 +34,21 @@ steps:
   displayName: 'Fix pyzmq on Windows'
   condition: and(succeeded(), eq(variables['Agent.OS'], 'Windows_NT'))
 
-- script: |
+- pwsh: |
     (& "C:\Miniconda\scripts\conda.exe" "shell.powershell" "hook") | Out-String | Invoke-Expression
     conda activate core_tests
     dotnet run -c $(Build.Configuration) -v n -- install --develop
   displayName: "Add IEcho kernel to Jupyter."
   workingDirectory: examples/echo-kernel
 
-- script: |
+- pwsh: |
     (& "C:\Miniconda\scripts\conda.exe" "shell.powershell" "hook") | Out-String | Invoke-Expression
     conda activate core_tests
     dotnet run -c $(Build.Configuration) -v n -- install --develop
   displayName: "Add IMoon kernel to Jupyter."
   workingDirectory: examples/moon-kernel
 
-- script: |
+- pwsh: |
     (& "C:\Miniconda\scripts\conda.exe" "shell.powershell" "hook") | Out-String | Invoke-Expression
     conda activate core_tests
     py.test tests/protocol/
