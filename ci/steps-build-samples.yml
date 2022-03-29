@@ -23,7 +23,7 @@ steps:
     conda activate core_tests
     conda info
     pip list
-    pip install jupyter_kernel_test
+    pip install git+https://github.com/IsraelMiles/jupyter_kernel_test.git
   displayName: 'Install additional dependencies from pip'
 
 # The version of pyzmq on Anaconda does not seem to work in Windows agents
