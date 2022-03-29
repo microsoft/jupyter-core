@@ -190,7 +190,7 @@ namespace Microsoft.Jupyter.Core
                     {
                         ZmqIdentities = message.ZmqIdentities,
                         ParentHeader = message.Header,
-                        Metadata = null,
+                        Metadata = new Dictionary<string, object>(),
                         Content = this.context.Properties.AsKernelInfoReply(),
                         Header = new MessageHeader
                         {

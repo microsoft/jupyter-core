@@ -45,7 +45,7 @@ namespace Microsoft.Jupyter.Core
         public IList<string>? Matches;
         public int? CursorStart;
         public int? CursorEnd;
-        public IDictionary<string, object>? Metadata;
+        public IDictionary<string, object> Metadata;
 
         public static CompletionResult Failed => new CompletionResult
         {
@@ -53,7 +53,7 @@ namespace Microsoft.Jupyter.Core
             Matches = null,
             CursorStart = null,
             CursorEnd = null,
-            Metadata = null
+            Metadata = new Dictionary<string, object>()
         };
     }
 
