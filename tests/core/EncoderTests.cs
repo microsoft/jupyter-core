@@ -37,12 +37,12 @@ namespace Microsoft.Jupyter.Core
             var data = encoder.Encode("foo");
             Assert.IsTrue(data.HasValue);
             Assert.AreEqual(data.Value.Data, "foo");
-            Assert.AreEqual(data.Value.Metadata, null);
+            Assert.AreEqual(data.Value.Metadata, "");
 
             data = encoder.Encode(null);
             Assert.IsTrue(data.HasValue);
             Assert.AreEqual(data.Value.Data, null);
-            Assert.AreEqual(data.Value.Metadata, null);
+            Assert.AreEqual(data.Value.Metadata, "");
         }
 
 
@@ -55,7 +55,7 @@ namespace Microsoft.Jupyter.Core
             var data = encoder.Encode(new [] {"foo", "bar"});
             Assert.IsTrue(data.HasValue);
             Assert.AreEqual(data.Value.Data, "foo, bar");
-            Assert.AreEqual(data.Value.Metadata, null);
+            Assert.AreEqual(data.Value.Metadata, "");
         }
 
         [TestMethod]
@@ -67,7 +67,7 @@ namespace Microsoft.Jupyter.Core
             var data = encoder.Encode(new [] {"foo", "bar"});
             Assert.IsTrue(data.HasValue);
             Assert.AreEqual(data.Value.Data, "<ul><li>foo</li><li>bar</li></ul>");
-            Assert.AreEqual(data.Value.Metadata, null);
+            Assert.AreEqual(data.Value.Metadata, "");
         }
 
         [TestMethod]
@@ -82,7 +82,7 @@ namespace Microsoft.Jupyter.Core
             var data = encoder.Encode("foo");
             Assert.IsTrue(data.HasValue);
             Assert.AreEqual(data.Value.Data, "oof");
-            Assert.AreEqual(data.Value.Metadata, null);
+            Assert.AreEqual(data.Value.Metadata, "");
         }
 
         [TestMethod]
@@ -99,7 +99,7 @@ namespace Microsoft.Jupyter.Core
 1337 2.718
 ";
             Assert.AreEqual(data.Value.Data, expected);
-            Assert.AreEqual(data.Value.Metadata, null);
+            Assert.AreEqual(data.Value.Metadata, "");
         }
 
         [TestMethod]
@@ -116,7 +116,7 @@ namespace Microsoft.Jupyter.Core
 1337 2.718
 ";
             Assert.AreEqual(data.Value.Data, expected);
-            Assert.AreEqual(data.Value.Metadata, null);
+            Assert.AreEqual(data.Value.Metadata, "");
         }
 
         [TestMethod]
