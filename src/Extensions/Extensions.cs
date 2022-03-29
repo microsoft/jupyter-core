@@ -52,7 +52,8 @@ namespace Microsoft.Jupyter.Core
                     Content = new KernelStatusContent
                     {
                         ExecutionState = state
-                    }
+                    },
+                    Metadata = ""
                 }.AsReplyTo(message)
             );
         }
