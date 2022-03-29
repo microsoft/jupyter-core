@@ -149,6 +149,9 @@ namespace Microsoft.Jupyter.Core.Protocol
         [JsonProperty("help_links")]
         public HelpLinks[] HelpLinks { get; set; }
 
+        [JsonProperty("status")]
+        public ExecuteStatus ExecuteStatus { get; set; }
+
     }
 
     [JsonObject(MemberSerialization.OptIn)]
