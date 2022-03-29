@@ -22,8 +22,7 @@ steps:
     (& "C:\Miniconda\scripts\conda.exe" "shell.powershell" "hook") | Out-String | Invoke-Expression
     conda activate core_tests
     conda info
-    pip list
-    pip install git+https://github.com/IsraelMiles/jupyter_kernel_test.git
+    pip install jupyter_kernel_test
   displayName: 'Install additional dependencies from pip'
 
 # The version of pyzmq on Anaconda does not seem to work in Windows agents
