@@ -412,7 +412,8 @@ namespace Microsoft.Jupyter.Core
                         {
                             StreamName = stream,
                             Text = text
-                        }
+                        },
+                        Metadata = new object()
                     }.AsReplyTo(parent)
                 );
             }
