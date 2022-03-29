@@ -177,7 +177,7 @@ namespace Microsoft.Jupyter.Core
                 Implementation = KernelName,
                 ImplementationVersion = KernelVersion,
                 LanguageInfo = AsLanguageInfo(),
-                HelpLinks = HelpLinks(),
+                HelpLinks = new HelpLinks(),
                 ExecuteStatus = ExecuteStatus.Ok,
                 Banner = ""
             };
