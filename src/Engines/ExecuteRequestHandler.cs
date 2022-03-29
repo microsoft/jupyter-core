@@ -146,7 +146,8 @@ namespace Microsoft.Jupyter.Core
                     Content = new ExecuteReplyContent
                     {
                         ExecuteStatus = engineResponse.Status,
-                        ExecutionCount = executionCount
+                        ExecutionCount = executionCount,
+                        UserExpressions = new Dictionary<string, object>()
                     },
                     Header = new MessageHeader
                     {
@@ -171,7 +172,8 @@ namespace Microsoft.Jupyter.Core
                     Content = new ExecuteReplyContent
                     {
                         ExecuteStatus = ExecuteStatus.Abort,
-                        ExecutionCount = null
+                        ExecutionCount = null,
+                        UserExpressions = new Dictionary<string, object>()
                     },
                     Header = new MessageHeader
                     {
