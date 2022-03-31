@@ -5,8 +5,8 @@ resources:
   repositories:
   - repository: self
 variables:
-  Build.Major: 1
-  Build.Minor: 5
+  Build.Major: 2
+  Build.Minor: 0
   Build.Patch: $(Build.BuildId)
   Build.Configuration: 'Release'
   Assembly.Constants: 'SIGNED'
@@ -15,7 +15,8 @@ variables:
 
 jobs:
 - job: Windows
-  pool: 'Hosted VS2017'
+  pool:
+    vmImage: 'windows-2022'
   steps:
   - template: steps-build-core.yml
   - template: steps-build-samples.yml

@@ -149,6 +149,9 @@ namespace Microsoft.Jupyter.Core.Protocol
         [JsonProperty("help_links")]
         public HelpLinks[] HelpLinks { get; set; }
 
+        [JsonProperty("status")]
+        public ExecuteStatus ExecuteStatus { get; set; }
+
     }
 
     [JsonObject(MemberSerialization.OptIn)]
@@ -172,7 +175,7 @@ namespace Microsoft.Jupyter.Core.Protocol
         public bool StoreHistory { get; set; }
 
         [JsonProperty("user_expressions")]
-        public object UserExpressions { get; set; }
+        public Dictionary<string, object> UserExpressions { get; set; }
 
         [JsonProperty("allow_stdin")]
         public bool AllowStandardIn { get; set; }

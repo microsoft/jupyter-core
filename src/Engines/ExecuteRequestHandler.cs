@@ -63,7 +63,7 @@ namespace Microsoft.Jupyter.Core
                 {
                     ZmqIdentities = message.ZmqIdentities,
                     ParentHeader = message.Header,
-                    Metadata = null,
+                    Metadata = new Dictionary<string, object>(),
                     Content = new ExecuteInputContent
                     {
                         Code = code,
@@ -115,7 +115,7 @@ namespace Microsoft.Jupyter.Core
                     {
                         ZmqIdentities = message.ZmqIdentities,
                         ParentHeader = message.Header,
-                        Metadata = null,
+                        Metadata = new Dictionary<string, object>(),
                         Content = new ExecuteResultContent
                         {
                             ExecutionCount = executionCount,
@@ -142,11 +142,12 @@ namespace Microsoft.Jupyter.Core
                 {
                     ZmqIdentities = message.ZmqIdentities,
                     ParentHeader = message.Header,
-                    Metadata = null,
+                    Metadata = new Dictionary<string, object>(),
                     Content = new ExecuteReplyContent
                     {
                         ExecuteStatus = engineResponse.Status,
-                        ExecutionCount = executionCount
+                        ExecutionCount = executionCount,
+                        UserExpressions = new Dictionary<string, object>()
                     },
                     Header = new MessageHeader
                     {
@@ -167,11 +168,12 @@ namespace Microsoft.Jupyter.Core
                 {
                     ZmqIdentities = message.ZmqIdentities,
                     ParentHeader = message.Header,
-                    Metadata = null,
+                    Metadata = new Dictionary<string, object>(),
                     Content = new ExecuteReplyContent
                     {
                         ExecuteStatus = ExecuteStatus.Abort,
-                        ExecutionCount = null
+                        ExecutionCount = null,
+                        UserExpressions = new Dictionary<string, object>()
                     },
                     Header = new MessageHeader
                     {

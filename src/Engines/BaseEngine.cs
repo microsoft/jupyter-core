@@ -412,7 +412,8 @@ namespace Microsoft.Jupyter.Core
                         {
                             StreamName = stream,
                             Text = text
-                        }
+                        },
+                        Metadata = new object()
                     }.AsReplyTo(parent)
                 );
             }
@@ -498,7 +499,7 @@ namespace Microsoft.Jupyter.Core
                     {
                         ZmqIdentities = message.ZmqIdentities,
                         ParentHeader = message.Header,
-                        Metadata = null,
+                        Metadata = new Dictionary<string, object>(),
                         Content = null,
                         Header = new MessageHeader
                         {
