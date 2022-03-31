@@ -14,8 +14,8 @@ resources:
   repositories:
   - repository: self
 variables:
-  Build.Major: 1
-  Build.Minor: 5
+  Build.Major: 2
+  Build.Minor: 0
   Build.Patch: $(Build.BuildId)
   Build.Configuration: 'Release'
   VersioningScheme: 'byPrereleaseNumber'
@@ -23,24 +23,11 @@ variables:
 
 jobs:
 - job: Windows
-  pool: 'Hosted VS2017'
+  pool:
+    vmImage: 'windows-2022'
   steps:
   - template: steps-build-core.yml
   - template: steps-build-samples.yml
   - task: PublishBuildArtifacts@1
     condition: succeededOrFailed()
-
-####
-# Needs to be disabled due to: https://developercommunity.visualstudio.com/content/problem/423843/condaenvironment.html
-####
-# - job: macOS
-#   pool: 'Hosted macOS'
-#   steps:
-#   - template: steps-build-core.yml
-#   - template: steps-build-samples.yml
-# - job: Linux
-#   pool: 'Hosted Ubuntu 1604'
-#   steps:
-#   - template: steps-build-core.yml
-#   - template: steps-build-samples.yml
 

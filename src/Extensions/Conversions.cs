@@ -42,7 +42,7 @@ namespace Microsoft.Jupyter.Core
             new EncodedData
             {
                 Data = data,
-                Metadata = null
+                Metadata = ""
             };
 
         /// <summary>
