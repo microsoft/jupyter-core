@@ -2,9 +2,9 @@ name: DevSkim
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
   pull_request:
-    branches: [ main ]
+    branches: [ master ]
   workflow_dispatch:
   schedule:
     # set schedule to run at 2AM PT on Saturdays
