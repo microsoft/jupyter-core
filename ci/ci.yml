@@ -14,8 +14,8 @@ resources:
   repositories:
   - repository: self
 variables:
-  Build.Major: 2
-  Build.Minor: 1
+  Build.Major: 3
+  Build.Minor: 0
   Build.Patch: $(Build.BuildId)
   Build.Configuration: 'Release'
   VersioningScheme: 'byPrereleaseNumber'
