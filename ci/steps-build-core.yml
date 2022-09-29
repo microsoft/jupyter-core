@@ -4,9 +4,9 @@
 
 steps:
 - task: DotNetCoreInstaller@1
-  displayName: 'Install .NET Core SDK 3.1.423'
+  displayName: 'Install .NET Core SDK 3.1.300'
   inputs:
-    version: 3.1.423
+    version: 3.1.100
 
 - task: DotNetCoreCLI@2
   displayName: "Build and run unit tests on Core library"
@@ -25,4 +25,3 @@ steps:
     majorVersion: $(Build.Major)
     minorVersion: $(Build.Minor)
     patchVersion: $(Build.Patch)
-    arguments: '/p:DefineConstants=$(Assembly.Constants)'
