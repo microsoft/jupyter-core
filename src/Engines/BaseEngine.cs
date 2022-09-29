@@ -413,7 +413,7 @@ namespace Microsoft.Jupyter.Core
                             StreamName = stream,
                             Text = text
                         },
-                        Metadata = new object()
+                        Metadata = new Dictionary<string, Newtonsoft.Json.Linq.JToken>()
                     }.AsReplyTo(parent)
                 );
             }
@@ -423,11 +423,20 @@ namespace Microsoft.Jupyter.Core
             }
         }
 
-        private void WriteDisplayData(Message parent, object displayable, TransientDisplayData transient = null, bool isUpdate = false)
+        private void WriteDisplayData(Message parent, object displayable, TransientDisplayData? transient = null, bool isUpdate = false)
         {
             try
             {
                 var serialized = EncodeForDisplay(displayable);
+                var displayData = new DisplayDataContent
+                {
+                    Data = serialized.Data,
+                    Metadata = serialized.Metadata,
+                    Transient = transient
+                };
+                #if DEBUG
+                Debug.Assert(!(displayData.Metadata is null));
+                #endif
 
                 // Send the engine's output to stdout.
                 this.ShellServer.SendIoPubMessage(
@@ -439,12 +448,7 @@ namespace Microsoft.Jupyter.Core
                                           ? "update_display_data"
                                           : "display_data"
                         },
-                        Content = new DisplayDataContent
-                        {
-                            Data = serialized.Data,
-                            Metadata = serialized.Metadata,
-                            Transient = transient
-                        }
+                        Content = displayData
                     }.AsReplyTo(parent)
                 );
             }
@@ -499,7 +503,7 @@ namespace Microsoft.Jupyter.Core
                     {
                         ZmqIdentities = message.ZmqIdentities,
                         ParentHeader = message.Header,
-                        Metadata = new Dictionary<string, object>(),
+                        Metadata = new Dictionary<string, Newtonsoft.Json.Linq.JToken>(),
                         Content = null,
                         Header = new MessageHeader
                         {

@@ -53,7 +53,7 @@ namespace Microsoft.Jupyter.Core
                     {
                         ExecutionState = state
                     },
-                    Metadata = new object()
+                    Metadata = new Dictionary<string, JToken>()
                 }.AsReplyTo(message)
             );
         }

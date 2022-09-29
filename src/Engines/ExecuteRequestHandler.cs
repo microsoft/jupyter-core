@@ -63,7 +63,7 @@ namespace Microsoft.Jupyter.Core
                 {
                     ZmqIdentities = message.ZmqIdentities,
                     ParentHeader = message.Header,
-                    Metadata = new Dictionary<string, object>(),
+                    Metadata = new Dictionary<string, Newtonsoft.Json.Linq.JToken>(),
                     Content = new ExecuteInputContent
                     {
                         Code = code,
@@ -115,7 +115,7 @@ namespace Microsoft.Jupyter.Core
                     {
                         ZmqIdentities = message.ZmqIdentities,
                         ParentHeader = message.Header,
-                        Metadata = new Dictionary<string, object>(),
+                        Metadata = new Dictionary<string, Newtonsoft.Json.Linq.JToken>(),
                         Content = new ExecuteResultContent
                         {
                             ExecutionCount = executionCount,
@@ -142,7 +142,7 @@ namespace Microsoft.Jupyter.Core
                 {
                     ZmqIdentities = message.ZmqIdentities,
                     ParentHeader = message.Header,
-                    Metadata = new Dictionary<string, object>(),
+                    Metadata = new Dictionary<string, Newtonsoft.Json.Linq.JToken>(),
                     Content = new ExecuteReplyContent
                     {
                         ExecuteStatus = engineResponse.Status,
@@ -168,7 +168,7 @@ namespace Microsoft.Jupyter.Core
                 {
                     ZmqIdentities = message.ZmqIdentities,
                     ParentHeader = message.Header,
-                    Metadata = new Dictionary<string, object>(),
+                    Metadata = new Dictionary<string, Newtonsoft.Json.Linq.JToken>(),
                     Content = new ExecuteReplyContent
                     {
                         ExecuteStatus = ExecuteStatus.Abort,

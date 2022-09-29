@@ -1,0 +1,13 @@
+{
+    "extensions": [
+        "ms-dotnettools.csharp"
+    ],
+    "features": {
+        "ghcr.io/devcontainers/features/dotnet:1": {
+            "version": "3.1.423"
+        },
+        "ghcr.io/devcontainers/features/python:1": {
+            "version": "3.8"
+        }
+    }
+}

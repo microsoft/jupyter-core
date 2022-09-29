@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace Microsoft.Jupyter.Core
 {
@@ -29,20 +30,20 @@ namespace Microsoft.Jupyter.Core
     internal struct MimeBundle
     {
         public Dictionary<string, string> Data;
-        public Dictionary<string, string> Metadata;
+        public Dictionary<string, Dictionary<string, JToken>> Metadata;
 
         public static MimeBundle Empty() =>
             new MimeBundle
             {
                 Data = new Dictionary<string, string>(),
-                Metadata = new Dictionary<string, string>()
+                Metadata = new Dictionary<string, Dictionary<string, JToken>>()
             };
     }
 
     public struct EncodedData
     {
         public string Data;
-        public string Metadata;
+        public Dictionary<string, JToken> Metadata;
     }
 
     public interface IResultEncoder
