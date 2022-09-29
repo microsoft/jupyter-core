@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
+#nullable enable
+
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using Newtonsoft.Json.Linq;
@@ -61,8 +63,7 @@ namespace Microsoft.Jupyter.Core.Protocol
         // each message will have the previous message's header in this field.
         public MessageHeader ParentHeader { get; set; }
 
-        // FIXME: make not just an object.
-        public object Metadata { get; set; }
+        public Dictionary<string, JToken> Metadata { get; set; } = new();
 
         // FIXME: make not just an object.
         public MessageContent Content { get; set; }
@@ -204,7 +205,7 @@ namespace Microsoft.Jupyter.Core.Protocol
         public Dictionary<string, string> Data { get; set; }
 
         [JsonProperty("metadata")]
-        public Dictionary<string, string> Metadata { get; set; } = new Dictionary<string, string>();
+        public Dictionary<string, Dictionary<string, JToken>> Metadata { get; set; } = new();
     }
 
     [JsonObject(MemberSerialization.OptIn)]
@@ -285,10 +286,10 @@ namespace Microsoft.Jupyter.Core.Protocol
         public Dictionary<string, string> Data { get; set; }
 
         [JsonProperty("metadata")]
-        public Dictionary<string, string> Metadata { get; set; } = new Dictionary<string, string>();
+        public Dictionary<string, Dictionary<string, JToken>> Metadata { get; set; } = new();
 
         [JsonProperty("transient", NullValueHandling=NullValueHandling.Ignore)]
-        public TransientDisplayData Transient { get; set; } = null;
+        public TransientDisplayData? Transient { get; set; } = null;
     }
 
     [JsonObject(MemberSerialization.OptIn)]

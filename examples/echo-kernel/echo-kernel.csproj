@@ -3,7 +3,7 @@
   <PropertyGroup>
     <PackAsTool>True</PackAsTool>
     <OutputType>Exe</OutputType>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <TargetFramework>net6.0</TargetFramework>
 
     <!--
       NB: We need for the tool command name to match the pattern dotnet-*,

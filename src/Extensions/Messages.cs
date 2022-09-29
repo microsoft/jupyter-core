@@ -95,7 +95,7 @@ namespace Microsoft.Jupyter.Core
                 Signature = signature,
                 Header = header,
                 ParentHeader = JsonConvert.DeserializeObject<MessageHeader>(frames[idxDelimiter + 3]),
-                Metadata = JsonConvert.DeserializeObject<Dictionary<string, object>>(frames[idxDelimiter + 4]),
+                Metadata = JsonConvert.DeserializeObject<Dictionary<string, JToken>>(frames[idxDelimiter + 4]),
                 Content = content
             };
 
@@ -114,7 +114,7 @@ namespace Microsoft.Jupyter.Core
             //       message frames.
 
             var zmqMessage = new NetMQMessage();
-            var frames = new[]
+            var frames = new object[]
                 {
                     message.Header,
                     message.ParentHeader,
