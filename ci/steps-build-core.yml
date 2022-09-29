@@ -25,3 +25,4 @@ steps:
     majorVersion: $(Build.Major)
     minorVersion: $(Build.Minor)
     patchVersion: $(Build.Patch)
+    arguments: '/p:DefineConstants=$(Assembly.Constants)'
