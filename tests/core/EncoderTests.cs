@@ -10,6 +10,15 @@ using Microsoft.Extensions.Logging;
 namespace Microsoft.Jupyter.Core
 {
 
+    internal static class TestExtensions
+    {
+        public static void IsEmpty<T>(this Assert assert, IEnumerable<T> source)
+        {
+            Assert.IsNotNull(source);
+            Assert.AreEqual(expected: 0, actual: source.Count());
+        }
+    }
+
     [TestClass]
     public class EncoderTests
     {
@@ -37,12 +46,12 @@ namespace Microsoft.Jupyter.Core
             var data = encoder.Encode("foo");
             Assert.IsTrue(data.HasValue);
             Assert.AreEqual(data.Value.Data, "foo");
-            Assert.AreEqual(data.Value.Metadata, "");
+            Assert.That.IsEmpty(data.Value.Metadata);
 
             data = encoder.Encode(null);
             Assert.IsTrue(data.HasValue);
             Assert.AreEqual(data.Value.Data, null);
-            Assert.AreEqual(data.Value.Metadata, "");
+            Assert.That.IsEmpty(data.Value.Metadata);
         }
 
 
@@ -55,7 +64,7 @@ namespace Microsoft.Jupyter.Core
             var data = encoder.Encode(new [] {"foo", "bar"});
             Assert.IsTrue(data.HasValue);
             Assert.AreEqual(data.Value.Data, "foo, bar");
-            Assert.AreEqual(data.Value.Metadata, "");
+            Assert.That.IsEmpty(data.Value.Metadata);
         }
 
         [TestMethod]
@@ -67,7 +76,7 @@ namespace Microsoft.Jupyter.Core
             var data = encoder.Encode(new [] {"foo", "bar"});
             Assert.IsTrue(data.HasValue);
             Assert.AreEqual(data.Value.Data, "<ul><li>foo</li><li>bar</li></ul>");
-            Assert.AreEqual(data.Value.Metadata, "");
+            Assert.That.IsEmpty(data.Value.Metadata);
         }
 
         [TestMethod]
@@ -82,7 +91,7 @@ namespace Microsoft.Jupyter.Core
             var data = encoder.Encode("foo");
             Assert.IsTrue(data.HasValue);
             Assert.AreEqual(data.Value.Data, "oof");
-            Assert.AreEqual(data.Value.Metadata, "");
+            Assert.That.IsEmpty(data.Value.Metadata);
         }
 
         [TestMethod]
@@ -99,7 +108,7 @@ namespace Microsoft.Jupyter.Core
 1337 2.718
 ";
             Assert.AreEqual(data.Value.Data, expected);
-            Assert.AreEqual(data.Value.Metadata, "");
+            Assert.That.IsEmpty(data.Value.Metadata);
         }
 
         [TestMethod]
@@ -116,7 +125,7 @@ namespace Microsoft.Jupyter.Core
 1337 2.718
 ";
             Assert.AreEqual(data.Value.Data, expected);
-            Assert.AreEqual(data.Value.Metadata, "");
+            Assert.That.IsEmpty(data.Value.Metadata);
         }
 
         [TestMethod]
@@ -138,8 +147,8 @@ namespace Microsoft.Jupyter.Core
                             $"<tr><td {style}>1337</td><td {style}>2.718</td></tr>" +
                         "</tbody>" +
                     "</table>";
-                Assert.AreEqual(data.Value.Data, expected);
-                Assert.AreEqual(data.Value.Metadata, null);
+                Assert.AreEqual(expected, data.Value.Data);
+                Assert.That.IsEmpty(data.Value.Metadata);
             }
         }
 

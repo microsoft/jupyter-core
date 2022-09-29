@@ -115,34 +115,32 @@ namespace Microsoft.Jupyter.Core
                 var headers = table.Headers;
                 var cells = table.Cells;
 
-                return new EncodedData
-                {
-                    Data =
-                        "<table>" +
-                            "<thead>" +
-                                "<tr>" +
-                                    String.Join("",
-                                        headers.Select(
-                                            header => $"<th {TableCellAlignment.ToStyleAttribute()}>{header}</th>"
-                                        )
-                                    ) +
-                                "</tr>" +
-                            "</thead>" +
-                            "<tbody>" +
+                return (
+                    "<table>" +
+                        "<thead>" +
+                            "<tr>" +
                                 String.Join("",
-                                    cells.Select(row =>
-                                        "<tr>" +
-                                        String.Join("",
-                                            row.Select(
-                                                cell => $"<td {TableCellAlignment.ToStyleAttribute()}>{cell}</td>"
-                                            )
-                                        ) +
-                                        "</tr>"
+                                    headers.Select(
+                                        header => $"<th {TableCellAlignment.ToStyleAttribute()}>{header}</th>"
                                     )
                                 ) +
-                            "</tbody>" +
-                        "</table>"
-                };
+                            "</tr>" +
+                        "</thead>" +
+                        "<tbody>" +
+                            String.Join("",
+                                cells.Select(row =>
+                                    "<tr>" +
+                                    String.Join("",
+                                        row.Select(
+                                            cell => $"<td {TableCellAlignment.ToStyleAttribute()}>{cell}</td>"
+                                        )
+                                    ) +
+                                    "</tr>"
+                                )
+                            ) +
+                        "</tbody>" +
+                    "</table>"
+                ).ToEncodedData();
             } else return null;
         }
     }
