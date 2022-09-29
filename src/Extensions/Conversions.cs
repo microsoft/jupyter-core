@@ -42,7 +42,7 @@ namespace Microsoft.Jupyter.Core
             new EncodedData
             {
                 Data = data,
-                Metadata = new()
+                Metadata = new Dictionary<string, Newtonsoft.Json.Linq.JToken>()
             };
 
         /// <summary>

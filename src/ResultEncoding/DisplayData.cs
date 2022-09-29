@@ -35,8 +35,8 @@ namespace Microsoft.Jupyter.Core
         public static MimeBundle Empty() =>
             new MimeBundle
             {
-                Data = new(),
-                Metadata = new()
+                Data = new Dictionary<string, string>(),
+                Metadata = new Dictionary<string, Dictionary<string, JToken>>()
             };
     }
 

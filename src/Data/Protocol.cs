@@ -63,7 +63,7 @@ namespace Microsoft.Jupyter.Core.Protocol
         // each message will have the previous message's header in this field.
         public MessageHeader ParentHeader { get; set; }
 
-        public Dictionary<string, JToken> Metadata { get; set; } = new();
+        public Dictionary<string, JToken> Metadata { get; set; } = new Dictionary<string, JToken>();
 
         // FIXME: make not just an object.
         public MessageContent Content { get; set; }
@@ -205,7 +205,8 @@ namespace Microsoft.Jupyter.Core.Protocol
         public Dictionary<string, string> Data { get; set; }
 
         [JsonProperty("metadata")]
-        public Dictionary<string, Dictionary<string, JToken>> Metadata { get; set; } = new();
+        public Dictionary<string, Dictionary<string, JToken>> Metadata { get; set; }
+            = new Dictionary<string, Dictionary<string, JToken>>();
     }
 
     [JsonObject(MemberSerialization.OptIn)]
@@ -286,7 +287,8 @@ namespace Microsoft.Jupyter.Core.Protocol
         public Dictionary<string, string> Data { get; set; }
 
         [JsonProperty("metadata")]
-        public Dictionary<string, Dictionary<string, JToken>> Metadata { get; set; } = new();
+        public Dictionary<string, Dictionary<string, JToken>> Metadata { get; set; }
+            = new Dictionary<string, Dictionary<string, JToken>>();
 
         [JsonProperty("transient", NullValueHandling=NullValueHandling.Ignore)]
         public TransientDisplayData? Transient { get; set; } = null;

@@ -413,7 +413,7 @@ namespace Microsoft.Jupyter.Core
                             StreamName = stream,
                             Text = text
                         },
-                        Metadata = new()
+                        Metadata = new Dictionary<string, Newtonsoft.Json.Linq.JToken>()
                     }.AsReplyTo(parent)
                 );
             }
@@ -435,7 +435,7 @@ namespace Microsoft.Jupyter.Core
                     Transient = transient
                 };
                 #if DEBUG
-                Debug.Assert(displayData.Metadata is not null);
+                Debug.Assert(!(displayData.Metadata is null));
                 #endif
 
                 // Send the engine's output to stdout.
@@ -503,7 +503,7 @@ namespace Microsoft.Jupyter.Core
                     {
                         ZmqIdentities = message.ZmqIdentities,
                         ParentHeader = message.Header,
-                        Metadata = new(),
+                        Metadata = new Dictionary<string, Newtonsoft.Json.Linq.JToken>(),
                         Content = null,
                         Header = new MessageHeader
                         {
