@@ -1,4 +1,8 @@
-# Microsoft.Jupyter.Core Preview #
+# DEPRECATION NOTICE #
+
+**This repository is deprecated.** 
+
+## Microsoft.Jupyter.Core Preview ##
 
 The **Microsoft.Jupyter.Core** library makes it easier to write language kernels for Jupyter using .NET Core languages like C# and F#.
 This library uses .NET Core technologies such as the [ASP.NET Core Dependency Injection Framework](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/dependency-injection?view=aspnetcore-2.2) to help make it straightforward to develop for the Jupyter platform.
